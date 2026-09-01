@@ -1,0 +1,20 @@
+{
+  "name": "ta3leem-mcp-remote",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Public HTTP MCP server for ta3leem OpenProject + Gitea, for claude.ai, mobile and Cowork",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "tail": "wrangler tail"
+  },
+  "dependencies": {
+    "@cloudflare/workers-oauth-provider": "^0.10.3"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260828.1",
+    "typescript": "^5.6.0",
+    "wrangler": "^4.127.1"
+  }
+}

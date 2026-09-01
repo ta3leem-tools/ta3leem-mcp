@@ -1,0 +1,18 @@
+# Local-only values for `npx wrangler dev`. Copy to .dev.vars, never commit it.
+# Changes here need a wrangler restart, they are not hot-reloaded.
+# In production these are set with `npx wrangler secret put NAME`.
+
+# The team passphrase gating the consent screen. Invent one: openssl rand -base64 24
+ENROLL_PASSPHRASE=
+
+# Option A, a Cloudflare Access service token (lasts a year, needs CF admin):
+CF_ACCESS_CLIENT_ID=
+CF_ACCESS_CLIENT_SECRET=
+
+# Option B, a 24h Access session token (no admin needed, refresh daily):
+#   cloudflared access token --app=https://pm.ta3leem.dev
+CF_ACCESS_TOKEN_OPENPROJECT=
+
+# Unused today: gitea.ta3leem.dev is not an Access application. Kept in case
+# that ever changes.
+CF_ACCESS_TOKEN_GITEA=

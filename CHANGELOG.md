@@ -1,5 +1,62 @@
 # Changelog
 
+## 1.4.0 (2026-09-01)
+
+- **New: `remote/`, a public HTTPS server for the hosted Claude clients.**
+  claude.ai, the mobile apps and Cowork connect from Anthropic's cloud, so they
+  cannot use the stdio servers at all. `remote/` is one Cloudflare Worker
+  carrying the same 20 tools (7 OpenProject, 13 Gitea) over Streamable HTTP.
+  The Claude Code setup is untouched and this is entirely optional.
+- The Worker is its own OAuth 2.1 authorization server, with dynamic client
+  registration, Client ID Metadata Document support and S256 PKCE. Each person
+  pastes their own OpenProject key and Gitea token at the consent screen and
+  those are encrypted into that person's grant, so there is no shared service
+  identity and attribution survives.
+- Enrollment is gated by a team passphrase, and both credentials are verified
+  against the live APIs before a grant is ever stored, so a wrong key fails on
+  the spot instead of producing a connector that silently does not work.
+- The 13 Gitea tools are reimplemented against Gitea REST v1, because the
+  upstream Go binary cannot run on Workers. Tool names are identical, so the
+  same prompts work on both setups.
+- Every list-shaped Gitea tool now takes explicit `page` and `limit` and reports
+  whether more remains, which is a direct answer to the silent diff truncation
+  (65 files returned out of 299).
+- `download_attachment` returns the bytes inline as base64, capped at 4 MB. A
+  Worker has no local disk, so there is no file path to hand back.
+- `remote/selftest-remote.mjs` drives the whole flow end to end: registration,
+  PKCE, consent, token exchange, real tool calls, plus the negative paths.
+- Two ways through Cloudflare Access, because a service token needs admin on the
+  account that owns the Access application and not everyone has it. A service
+  token is preferred when present; failing that, `remote/refresh-access-token.sh`
+  pushes a 24h `cloudflared` session token into the Worker and can be crontabbed.
+  Verified working: with the session token set, a request reaches OpenProject
+  itself rather than the Access login page.
+- Gitea turned out to need no Cloudflare Access token at all. Its bare API 403 is
+  Gitea's own "Only signed in user is allowed to call APIs", not a Cloudflare
+  block, and the host answers publicly. Each user's own token is enough, so all
+  13 Gitea tools work with no extra setup and keep working when the OpenProject
+  session token lapses.
+- Access headers are now per upstream rather than shared, since an Access JWT's
+  `aud` claim is scoped to one application.
+- Confirmed against a live deployment, not just locally. The Cloudflare Access
+  session JWT does work from Cloudflare's edge and is not IP bound: a request
+  from the deployed Worker reached OpenProject and came back with a 401 on a
+  deliberately invalid API key, rather than the Access login page. That was the
+  last open assumption in the design.
+- Three real bugs found by running the setup rather than reading about it.
+  `wrangler whoami` exits 0 while logged out, so its exit code cannot be used as
+  a login check. `wrangler secret put` fails with error 10007 on a Worker that
+  has not been deployed yet, so deploy has to come before secrets. And a cron job
+  would have failed silently every day, because the system Node 20 shadows nvm's
+  Node 24 under cron's minimal PATH and wrangler needs 22 or newer.
+- `cloudflared access login` does not rotate a session that is still valid, it
+  returns the cached token unchanged. Deleting the cached token file first mints
+  a new one, though the old one stays valid until it expires.
+- `remote/deploy.sh` reduces setup to one browser click plus one command. It
+  creates the KV namespace and writes its id into the config, stores or generates
+  the team passphrase, deploys, pushes the Access token and runs the selftest
+  against the live URL. Re-running it skips whatever is already done.
+
 ## 1.3.0 (2026-09-01)
 
 - **No more reinstalling.** Both servers now run out of the clone through

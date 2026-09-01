@@ -135,6 +135,17 @@ Two conditions: the Access policy for the application must have its action set t
 must be **per person**, not one shared across the team, or nobody can tell who
 did what and access outlives employment.
 
+## Claude on the web and on your phone
+
+Everything above is for Claude Code, which runs on your laptop. claude.ai in a
+browser, the mobile apps and Cowork connect from Anthropic's cloud instead, so
+they cannot reach a local process and need a server on the public internet.
+
+`remote/` holds that: one Cloudflare Worker exposing the same 20 tools over
+HTTPS, with its own OAuth sign-in so each person still connects under their own
+tokens rather than a shared key. It is optional, it changes nothing here, and
+`remote/README.md` has the deploy steps.
+
 ## Troubleshooting
 
 | Symptom | Cause | Fix |
@@ -182,6 +193,7 @@ Worth knowing before you trust an answer:
 | `skills/ta3leem-report/` | The `/ta3leem-report` command, installed into `~/.claude/skills` |
 | `USAGE.md` | Example prompts and the large-PR caveats |
 | `UPDATE.md` | How auto-update works, and the manual override |
+| `remote/` | Optional Cloudflare Worker for claude.ai, mobile and Cowork |
 | `VERSION`, `CHANGELOG.md` | What you have, and what changed |
 
 ## Maintainer

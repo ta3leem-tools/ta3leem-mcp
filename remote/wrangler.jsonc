@@ -1,0 +1,26 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ta3leem-mcp",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "observability": { "enabled": true },
+
+  // Grant storage for the OAuth provider. Create with:
+  //   npx wrangler kv namespace create OAUTH_KV
+  // then paste the id it prints here.
+  "kv_namespaces": [
+    { "binding": "OAUTH_KV", "id": "73571e4dfe01450c847b89802e8bd936" }
+  ],
+
+  "vars": {
+    "OPENPROJECT_URL": "https://pm.ta3leem.dev",
+    "GITEA_URL": "https://gitea.ta3leem.dev"
+  }
+
+  // Secrets, set with `npx wrangler secret put NAME` (never in this file):
+  //   CF_ACCESS_CLIENT_ID      Cloudflare Access service token id
+  //   CF_ACCESS_CLIENT_SECRET  Cloudflare Access service token secret
+  //   ENROLL_PASSPHRASE        gate on the consent screen, so a stranger who
+  //                            finds the URL cannot start an OAuth grant
+}
