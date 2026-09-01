@@ -95,6 +95,7 @@ const mcpHandler = {
       giteaUrl: trimUrl(env.GITEA_URL),
       openprojectKey: props.openprojectKey,
       giteaToken: props.giteaToken,
+      userNames: new Map(),
       openprojectAccessHeaders: cfAccessHeaders(env, "openproject"),
       giteaAccessHeaders: cfAccessHeaders(env, "gitea"),
     };
@@ -144,6 +145,20 @@ async function checkGitea(env: Env, token: string): Promise<{ login: string }> {
   }
   const me = JSON.parse(body);
   return { login: me.login || me.username || "unknown" };
+}
+
+/**
+ * Timing-safe secret comparison. Digest both sides first so lengths always
+ * match: timingSafeEqual throws on differing byte lengths, and short
+ * circuiting on length would itself leak information.
+ */
+async function secretsMatch(provided: string, expected: string): Promise<boolean> {
+  const enc = new TextEncoder();
+  const [a, b] = await Promise.all([
+    crypto.subtle.digest("SHA-256", enc.encode(provided)),
+    crypto.subtle.digest("SHA-256", enc.encode(expected)),
+  ]);
+  return crypto.subtle.timingSafeEqual(a, b);
 }
 
 // ---- consent screen ----
@@ -291,7 +306,7 @@ const uiHandler = {
       const opKey = String(form.get("op_key") || "").trim();
       const giteaToken = String(form.get("gitea_token") || "").trim();
 
-      if (!env.ENROLL_PASSPHRASE || passphrase !== env.ENROLL_PASSPHRASE) {
+      if (!env.ENROLL_PASSPHRASE || !(await secretsMatch(passphrase, env.ENROLL_PASSPHRASE))) {
         return consentForm(auth, clientName, "That passphrase is not right.");
       }
 
@@ -317,7 +332,11 @@ const uiHandler = {
         request: auth,
         // OpenProject id is the stable identity, so re-consenting replaces the
         // old grant for this person instead of piling up duplicates.
-        userId: `op:${op.id}`,
+        // No colon in this value, ever: the provider builds the authorization
+        // code as `userId:grantId:secret` and rejects anything that does not
+        // split into exactly 3 parts, so a colon here breaks every token
+        // exchange while the consent screen still appears to work.
+        userId: `op-${op.id}`,
         metadata: { name: op.name, gitea: gt.login },
         scope: auth.scope,
         props,

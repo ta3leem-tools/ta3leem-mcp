@@ -23,6 +23,12 @@ export interface ToolCtx {
   /** This user's own Gitea personal access token, from the decrypted grant props. */
   giteaToken: string;
   /**
+   * Per-request OpenProject user-id to display-name cache. Deliberately NOT a
+   * module-level Map: Workers reuse isolates across requests, so a module
+   * variable outlives the request that filled it and leaks between users.
+   */
+  userNames: Map<string, string>;
+  /**
    * Cloudflare Access headers for OpenProject. The Access JWT carries a
    * per-application `aud`, so a token minted for OpenProject is not valid for
    * Gitea and the two cannot share one map.

@@ -44,27 +44,26 @@ async function opGet(
 
 /**
  * Activity _links.user carries only an href, never a title, so an activity's
- * author is unresolvable without a second lookup. Report attribution depends on
+ * author is unresolvable without a second lookup. The cache lives on ctx, one
+ * per request, never at module scope. Report attribution depends on
  * it: "who moved this ticket today" is the difference between counting a ticket
  * as your own work and correctly excluding a QA status flip.
  */
-const userNameCache = new Map<string, string>();
-
 async function resolveUser(
   ctx: ToolCtx,
   href: string | undefined,
 ): Promise<{ id: number; name: string } | null> {
   const id = href?.split("/").pop();
   if (!id) { return null; }
-  if (!userNameCache.has(id)) {
+  if (!ctx.userNames.has(id)) {
     try {
       const u = await opGet(ctx, `/api/v3/users/${id}`);
-      userNameCache.set(id, u.name || u.login || `user ${id}`);
+      ctx.userNames.set(id, u.name || u.login || `user ${id}`);
     } catch {
-      userNameCache.set(id, `user ${id}`);
+      ctx.userNames.set(id, `user ${id}`);
     }
   }
-  return { id: Number(id), name: userNameCache.get(id) as string };
+  return { id: Number(id), name: ctx.userNames.get(id) as string };
 }
 
 /**

@@ -179,6 +179,13 @@ async function giteaGet(ctx: ToolCtx, path: string, query?: Record<string, strin
   return bodyText.length ? JSON.parse(bodyText) : null;
 }
 
+/**
+ * A raw diff is the one genuinely unbounded body here: a PR touching hundreds
+ * of files can run to megabytes, and a Worker has 128 MB total. Read it in
+ * chunks and stop at the cap rather than buffering whatever arrives.
+ */
+const MAX_TEXT_BYTES = 2 * 1024 * 1024;
+
 /** Fetch a non-JSON text response (diff/patch) with the same auth and error handling as giteaGet. */
 async function giteaGetText(ctx: ToolCtx, path: string): Promise<string> {
   const res = await fetch(ctx.giteaUrl + path, {
@@ -190,7 +197,7 @@ async function giteaGetText(ctx: ToolCtx, path: string): Promise<string> {
     },
     signal: AbortSignal.timeout(30000),
   });
-  const bodyText = await res.text();
+  const bodyText = await readCapped(res);
   if (!res.ok) {
     if (bodyText.trimStart().startsWith("<")) {
       throw new Error(
@@ -200,6 +207,32 @@ async function giteaGetText(ctx: ToolCtx, path: string): Promise<string> {
     throw new Error(`Gitea API ${res.status}: ${bodyText.slice(0, 300)}`);
   }
   return bodyText;
+}
+
+/** Reads at most MAX_TEXT_BYTES, appending a marker when the body was longer. */
+async function readCapped(res: Response): Promise<string> {
+  if (!res.body) { return ""; }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let out = "";
+  let bytes = 0;
+  let truncated = false;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) { break; }
+    bytes += value.byteLength;
+    if (bytes > MAX_TEXT_BYTES) {
+      truncated = true;
+      await reader.cancel();
+      break;
+    }
+    out += decoder.decode(value, { stream: true });
+  }
+  out += decoder.decode();
+  if (truncated) {
+    out += `\n\n[truncated at ${MAX_TEXT_BYTES} bytes. Page through list_files with an explicit per-page instead of reading the whole diff.]`;
+  }
+  return out;
 }
 
 /**

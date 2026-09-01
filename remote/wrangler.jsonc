@@ -2,9 +2,13 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "ta3leem-mcp",
   "main": "src/index.ts",
-  "compatibility_date": "2026-08-01",
+  "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
-  "observability": { "enabled": true },
+  "observability": {
+    "enabled": true,
+    "logs": { "head_sampling_rate": 1 },
+    "traces": { "head_sampling_rate": 0.01 }
+  },
 
   // Grant storage for the OAuth provider. Create with:
   //   npx wrangler kv namespace create OAUTH_KV
