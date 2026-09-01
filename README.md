@@ -6,12 +6,15 @@ tool in either server that can create, edit, comment, merge, or mark anything re
 
 ## Install
 
-    git clone https://gitea.ta3leem.dev/sandip.vanodiya/ta3leem-mcp.git
+    git clone https://github.com/sandiprv9898/ta3leem-mcp.git
     cd ta3leem-mcp
     ./install.sh
 
 The script asks for two tokens, checks they work, then registers both servers.
 Takes about 2 minutes.
+
+The repo is private. Ask for an invite if the clone asks for credentials you do
+not have.
 
 ## Before you start
 
