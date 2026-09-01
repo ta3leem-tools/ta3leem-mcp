@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.0 (2026-09-01)
+
+- `get_work_package_activities` now returns `user` and `userId` on every entry.
+  The API only ever sent a bare href, so the author was silently dropped and
+  every activity came back anonymous. Without it a daily report cannot tell your
+  own work from a QA status flip on the same ticket the same day.
+
 ## 1.1.0 (2026-09-01)
 
 - `get_work_package` now returns the ticket's parent, its child tickets, and any

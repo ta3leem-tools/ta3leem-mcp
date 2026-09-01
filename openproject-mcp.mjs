@@ -88,6 +88,27 @@ async function opGet(path, params = {}) {
 }
 
 /**
+ * Activity _links.user carries only an href, never a title, so an activity's
+ * author is unresolvable without a second lookup. Report attribution depends
+ * on it: "who moved this ticket today" is the difference between counting a
+ * ticket as your work and correctly excluding a QA status flip.
+ */
+const userNameCache = new Map();
+async function resolveUser(href) {
+  const id = href?.split("/").pop();
+  if (!id) { return null; }
+  if (!userNameCache.has(id)) {
+    try {
+      const u = await opGet(`/api/v3/users/${id}`);
+      userNameCache.set(id, u.name || u.login || `user ${id}`);
+    } catch {
+      userNameCache.set(id, `user ${id}`);
+    }
+  }
+  return { id: Number(id), name: userNameCache.get(id) };
+}
+
+/**
  * Paginating opGet, for the endpoints that really do page.
  * /principals caps at 100 per page and silently drops the rest, so a broad
  * name search loses matches without any signal. /projects has the same shape.
@@ -279,9 +300,11 @@ const TOOLS = {
       const from = a.offset || 0;
       const all = data._embedded.elements;
       const slice = a.limit ? all.slice(from, from + a.limit) : all.slice(from);
-      return slice.map((act) => ({
+      const authors = await Promise.all(slice.map((act) => resolveUser(act._links?.user?.href)));
+      return slice.map((act, i) => ({
         version: act.version,
-        user: act._links?.user?.title,
+        user: authors[i]?.name ?? null,
+        userId: authors[i]?.id ?? null,
         createdAt: ist(act.createdAt),
         comment: act.comment?.raw || null,
         changes: (act.details || []).map((d) => d.raw),

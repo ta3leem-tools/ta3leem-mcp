@@ -73,7 +73,9 @@ actions too.
 
 For each candidate, `get_work_package_activities`.
 
-- Keep only journal entries dated on `<date>` in IST whose author is the person.
+- Every entry carries `user` and `userId`. Match on `userId` against the id
+  `find_user` returned, since display names are not unique. Keep only entries
+  dated on `<date>` in IST whose author is the person.
 - Capture what they wrote: root-cause notes, clarifications, decisions, answers to
   questions, demo notes.
 - Drop tickets whose only activity that day belongs to someone else.
