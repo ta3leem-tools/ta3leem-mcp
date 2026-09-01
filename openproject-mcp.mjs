@@ -190,9 +190,44 @@ async function wpLinks(id) {
   };
 }
 
+/**
+ * Behaviour hints from the MCP tools spec. Every tool here issues HTTP GET only,
+ * so a client can skip confirmation prompts and safely retry. openWorldHint is
+ * true because the data lives in an external system, not in a closed set.
+ */
+const READ_ONLY = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: true,
+};
+
+/** Human-readable names, shown by clients that display tool titles. */
+const TITLES = {
+  find_user: "Find OpenProject User",
+  list_projects: "List Projects",
+  search_work_packages: "Search Tickets",
+  get_work_package: "Read Ticket",
+  get_work_package_activities: "Read Ticket History",
+  get_work_package_attachments: "List Ticket Attachments",
+  download_attachment: "Download Attachment",
+};
+
 const TOOLS = {
   find_user: {
     description: "Find OpenProject users/groups by (partial) name. Returns id + name.",
+    outputSchema: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          id: { type: "number" },
+          name: { type: "string" },
+          type: { type: "string", description: "User or Group" },
+        },
+        required: ["id", "name"],
+      },
+    },
     inputSchema: {
       type: "object",
       properties: { name: { type: "string", description: "Partial name, e.g. 'burhan'" } },
@@ -207,6 +242,19 @@ const TOOLS = {
   },
   list_projects: {
     description: "List visible OpenProject projects (id, identifier, name).",
+    outputSchema: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          id: { type: "number" },
+          identifier: { type: "string" },
+          name: { type: "string" },
+          active: { type: "boolean" },
+        },
+        required: ["id", "name"],
+      },
+    },
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
     async run() {
       const elements = await opGetAllPages("/api/v3/projects");
@@ -314,6 +362,22 @@ const TOOLS = {
 
   get_work_package_attachments: {
     description: "List attachments (files, images) for a work package. Returns id, filename, contentType, size, createdAt, author, and downloadUrl for each attachment.",
+    outputSchema: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          id: { type: "number" },
+          fileName: { type: "string" },
+          fileSize: { type: "number" },
+          contentType: { type: "string" },
+          createdAt: { type: ["string", "null"], description: "DD/MM/YYYY HH:mm IST" },
+          author: { type: ["string", "null"] },
+          downloadUrl: { type: ["string", "null"] },
+        },
+        required: ["id", "fileName"],
+      },
+    },
     inputSchema: {
       type: "object",
       properties: { id: { type: "number", description: "Work package ID" } },
@@ -335,6 +399,8 @@ const TOOLS = {
   },
 
   download_attachment: {
+    // Reads from OpenProject but writes a local file, so it is not read-only.
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     description: "Download an attachment by ID and save it to /tmp. Returns the local file path so Claude Code can Read/view it as an image.",
     inputSchema: {
       type: "object",
@@ -380,6 +446,14 @@ const TOOLS = {
 
 // ---- minimal MCP stdio transport (newline-delimited JSON-RPC 2.0) ----
 
+/**
+ * The one spec revision this transport implements. 2025-06-18 is what adds
+ * structuredContent to tool results, which is why results carry both a text
+ * block and the parsed value: a client on an older revision reads the text and
+ * behaves exactly as before.
+ */
+const PROTOCOL_VERSION = "2025-06-18";
+
 function send(msg) {
   process.stdout.write(JSON.stringify(msg) + "\n");
 }
@@ -397,7 +471,10 @@ rl.on("line", async (line) => {
       send({
         jsonrpc: "2.0", id: req.id,
         result: {
-          protocolVersion: req.params?.protocolVersion || "2024-11-05",
+          // Answer with what this server actually implements, never an echo of
+          // whatever the client asked for. Echoing claims support for features
+          // (resultType, _meta, structuredContent) that are not implemented here.
+          protocolVersion: PROTOCOL_VERSION,
           capabilities: { tools: {} },
           serverInfo: { name: "openproject-readonly", version: "1.0.0" },
         },
@@ -407,7 +484,12 @@ rl.on("line", async (line) => {
         jsonrpc: "2.0", id: req.id,
         result: {
           tools: Object.entries(TOOLS).map(([name, t]) => ({
-            name, description: t.description, inputSchema: t.inputSchema,
+            name,
+            title: TITLES[name],
+            description: t.description,
+            inputSchema: t.inputSchema,
+            ...(t.outputSchema ? { outputSchema: t.outputSchema } : {}),
+            annotations: t.annotations ?? READ_ONLY,
           })),
         },
       });
@@ -417,7 +499,10 @@ rl.on("line", async (line) => {
       const result = await tool.run(req.params?.arguments || {});
       send({
         jsonrpc: "2.0", id: req.id,
-        result: { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] },
+        result: {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+          structuredContent: result,
+        },
       });
     } else if (req.method === "ping") {
       send({ jsonrpc: "2.0", id: req.id, result: {} });

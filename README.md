@@ -1,83 +1,189 @@
-# ta3leem MCP setup (Gitea + OpenProject in Claude Code)
+# ta3leem MCP for Claude Code
 
-Gives Claude Code read-only access to our Gitea (PRs, issues, code) and
-OpenProject (tickets, comments, attachments). Read-only by design: there is no
-tool in either server that can create, edit, comment, merge, or mark anything read.
+Read-only access to our Gitea and OpenProject from inside Claude Code. Ask about
+a ticket or a pull request in plain language and Claude fetches the real thing,
+instead of you copying text out of a browser tab.
+
+Install once, and you never touch it again: the servers update themselves.
+
+## What you get
+
+- **Tickets.** Read any OpenProject ticket with its full description, its entire
+  comment history, its parent, its child tickets and its related tickets.
+- **Code and reviews.** Pull requests, diffs, issues, commits, branches and file
+  contents from Gitea.
+- **`/ta3leem-report`.** Your daily work report, assembled from what you actually
+  did in OpenProject and the commits you authored. It excludes tickets that only
+  moved because QA touched them.
+- **Attachments.** Screenshots and PDFs on a ticket, downloaded so Claude can
+  actually look at them. The real spec often lives there rather than in the
+  description.
+- **Read-only, by construction.** No tool in either server can create, edit,
+  comment, merge, approve, or mark anything as read. Not "configured off":
+  the code paths do not exist.
+
+Everything runs under your own tokens, so you see exactly what you would see in
+the browser and nothing more.
+
+## Requirements
+
+Check these first. The installer stops with a clear message if any is missing,
+but it saves you a round trip to have them ready.
+
+| Need | Check with | If missing |
+|---|---|---|
+| `node` v18+ | `node --version` | https://nodejs.org |
+| `claude` CLI | `claude --version` | `npm i -g @anthropic-ai/claude-code` |
+| `cloudflared` | `cloudflared --version` | `sudo apt install cloudflared` |
+| Repo access | you can open the repo page | ask the maintainer for an invite |
+
+You also need two tokens. **Generate your own. Never reuse a teammate's**, since
+every action is logged as whoever owns the token, and their access follows them
+when they leave.
+
+- **Gitea token:** https://gitea.ta3leem.dev then Settings, Applications,
+  Generate Token. Read scopes only.
+- **OpenProject key:** https://pm.ta3leem.dev then My Account, Access tokens, API.
 
 ## Install
 
-    git clone https://github.com/sandiprv9898/ta3leem-mcp.git
-    cd ta3leem-mcp
-    ./install.sh
+```bash
+git clone https://github.com/sandiprv9898/ta3leem-mcp.git
+cd ta3leem-mcp
+./install.sh
+```
 
-The script asks for two tokens, checks they work, then registers both servers.
-Takes about 2 minutes.
+About 2 minutes. The installer walks through four steps and stops on the first
+problem rather than half-installing:
 
-The repo is private. Ask for an invite if the clone asks for credentials you do
-not have.
+1. Checks the requirements above.
+2. Asks for your two tokens.
+3. Opens a browser once for Cloudflare Access login, since OpenProject sits
+   behind Cloudflare Zero Trust.
+4. Proves both servers answer with your tokens, and only then registers them
+   with Claude Code.
 
-## Before you start
+**Keep the clone where it is.** Claude Code is registered against this
+directory's path, so moving or deleting it breaks both servers. If you do move
+it, re-run `./install.sh` from the new location.
 
-You need `node` (v18+), the `claude` CLI, and `cloudflared` on your PATH. The
-script checks and tells you what is missing.
+## Verify
 
-Generate your OWN tokens. Do not reuse a teammate's, everything you do is
-logged as that person.
+```bash
+claude mcp list
+```
 
-- Gitea token: https://gitea.ta3leem.dev -> Settings -> Applications -> Generate Token
-- OpenProject key: https://pm.ta3leem.dev -> My Account -> Access tokens -> API
+Both `gitea` and `openproject` should report Connected. Then open Claude Code and
+try it:
 
-A browser window opens once for Cloudflare Access login. That session lasts
-about 24h. When OpenProject stops answering, run:
+```
+list my open PRs
+read ticket 18390 and tell me what is blocked
+/ta3leem-report
+```
 
-    cloudflared access login https://pm.ta3leem.dev
+If those answer with real data, you are done.
 
-## How to use it
+## Usage
 
-See `USAGE.md` for example prompts and the two gotchas worth knowing before you
-review a big PR.
+You never call the tools yourself. Talk normally and name the ticket or PR
+number. A few that work well:
 
-## Check it worked
+```
+read ticket 18843 including all the comments
+what are the child tickets of 17472 and what state is each in
+show me the review comments on PR 287
+read ticket 18843, then check whether PR 341 actually implements it
+/ta3leem-report yesterday
+```
 
-    claude mcp list
+Three habits that noticeably improve the answers:
 
-Both `gitea` and `openproject` should say Connected. Then in Claude Code, try
-"list my open PRs", or run `/ta3leem-report` for your daily report.
+- **Give the number.** "The leave ticket" costs an extra search and often finds
+  the wrong one.
+- **Ask for the comments explicitly.** Our requirements usually live in the
+  activity history, not the description.
+- **Mention attachments.** Otherwise Claude reads only text and misses the
+  screenshot holding the actual spec.
 
-## Updating later
+`USAGE.md` has the fuller list, plus what to do with a large PR.
 
-    cd ta3leem-mcp
-    git pull
-    ./install.sh
+## Updating
 
-That is the whole update path. No files to chase, no re-download. `install.sh` is
-safe to re-run any number of times. See `CHANGELOG.md` for what changed and
-`VERSION` for what you have.
+Nothing to do. Both servers run out of this clone and check for new code in the
+background, at most once every 6 hours, so a fix from the maintainer reaches you
+on your next Claude Code session.
+
+The check is deliberately timid: it runs after the server has already started so
+it can never delay a session, it uses `--ff-only`, and it skips itself entirely
+if you have local edits. `UPDATE.md` covers the manual override.
+
+## Stop logging in every day
+
+The Cloudflare browser login lasts about 24 hours. When OpenProject goes quiet:
+
+```bash
+cloudflared access login https://pm.ta3leem.dev
+```
+
+To be rid of that, ask the maintainer for a **Cloudflare Access service token**,
+which lasts a year. Set `CF_ACCESS_CLIENT_ID` and `CF_ACCESS_CLIENT_SECRET`
+instead of `CF_USE_CLOUDFLARED=1`, and `cloudflared` stops being needed at all.
+
+Two conditions: the Access policy for the application must have its action set to
+**Service Auth**, or Cloudflare still prompts for a browser login; and the token
+must be **per person**, not one shared across the team, or nobody can tell who
+did what and access outlives employment.
+
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| OpenProject stopped answering | Cloudflare session expired, about 24h | `cloudflared access login https://pm.ta3leem.dev`, then restart Claude Code |
+| `MISSING: node` / `claude` / `cloudflared` | Not on PATH | Install it, re-run `./install.sh` |
+| Gitea check failed during install | Token wrong, expired, or revoked | Regenerate the token, re-run `./install.sh` |
+| Both servers vanished | The clone was moved or deleted | Re-run `./install.sh` from where it lives now |
+| A long ticket's history looks cut off | Claude Code caps one tool result at 25k tokens | Add `"MAX_MCP_OUTPUT_TOKENS": "100000"` to the `env` block of `~/.claude/settings.json`, restart |
+| `claude mcp list` shows Failed | Usually a bad token or no network | Re-run `./install.sh`, it reports the real error |
+
+Re-running `./install.sh` is always safe. It replaces one server's registration
+at a time, so a failure never leaves you with neither.
 
 ## Platform
 
-The committed `gitea-mcp` is a linux x86-64 binary. On macOS or ARM, download the
-matching v1.3.0 build from gitea.com/gitea/gitea-mcp, replace the one in your
-clone, then run install.sh as normal. Do not commit that replacement, keep it
-local so `git pull` does not fight you.
+The committed `gitea-mcp` is a **linux x86-64** binary. On macOS or ARM, download
+the matching v1.3.0 build from gitea.com/gitea/gitea-mcp, replace the copy in
+your clone, then install as normal. Keep that replacement local and uncommitted,
+so `git pull` does not fight you over it.
 
 ## Known limits
 
-- Reviewing a big PR: `get_diff` silently returns only part of the diff on large
-  PRs (measured: 65 of 299 files), and `get_files` defaults to 30 files per page.
-  Ask Claude to page through with `per_page` if you need the whole thing.
-- PR review discussion lives in the issue comments, not in `get_reviews`.
-- If a very long ticket journal comes back cut off, add this to the `env` block
-  of your `~/.claude/settings.json` and restart Claude Code:
+Worth knowing before you trust an answer:
 
-      "MAX_MCP_OUTPUT_TOKENS": "100000",
+- **Large PR diffs come back partial.** On a PR touching hundreds of files,
+  Gitea's `get_diff` returns only part of it with no warning. Measured: 65 files
+  out of 299. Ask Claude to page through `get_files` with an explicit `per_page`
+  when reviewing something big.
+- **Review discussion is in the issue comments,** not in `get_reviews`, which
+  returns near-empty scaffolding on this Gitea instance.
+- **A thin commit message gives a thin report bullet.** `/ta3leem-report` is
+  assembled from ticket comments and commit messages, so read what it produces
+  before pasting it anywhere.
 
-## Files
+## What is in here
 
-- `install.sh`, the installer, also the updater
-- `VERSION` and `CHANGELOG.md`, what you have and what changed
-- `gitea-mcp`, upstream Gitea MCP binary v1.3.0, run with `-r` (read-only) and a tool allowlist
-- `openproject-mcp.mjs`, our OpenProject server, zero npm dependencies
-- `selftest.mjs`, used by the installer to prove your tokens work before registering
-- `USAGE.md`, example prompts and gotchas
-- `skills/ta3leem-report/`, the `/ta3leem-report` daily report command, installed to `~/.claude/skills`
+| File | Purpose |
+|---|---|
+| `install.sh` | One-time setup. Safe to re-run whenever tokens change |
+| `launch.sh` | What Claude Code actually runs. Starts a server, then checks for updates in the background |
+| `openproject-mcp.mjs` | Our OpenProject server. 7 read-only tools, zero npm dependencies |
+| `gitea-mcp` | Upstream Gitea MCP v1.3.0, run with `-r` and a 13-tool read-only allowlist |
+| `selftest.mjs` | Proves your tokens work before anything gets registered |
+| `skills/ta3leem-report/` | The `/ta3leem-report` command, installed into `~/.claude/skills` |
+| `USAGE.md` | Example prompts and the large-PR caveats |
+| `UPDATE.md` | How auto-update works, and the manual override |
+| `VERSION`, `CHANGELOG.md` | What you have, and what changed |
+
+## Maintainer
+
+Sandip Vanodiya. Open an issue on the repo, or ask in the team channel.

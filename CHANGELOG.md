@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.3.0 (2026-09-01)
+
+- **No more reinstalling.** Both servers now run out of the clone through
+  `launch.sh`, which checks for updates in a detached background process after
+  the server has started, at most once every 6 hours. A `git push` from the
+  maintainer reaches everyone on their next session. Nothing is copied into
+  `~/.local` any more, and the update is skipped if the clone has local edits.
+- Tool annotations added: every tool declares `readOnlyHint`, `destructiveHint`,
+  `idempotentHint` and `openWorldHint`, so a client can tell these are safe reads
+  and skip confirmation prompts. `download_attachment` is correctly marked not
+  read-only, since it writes a local file.
+- Tool titles added for clients that display them.
+- Tool results now carry `structuredContent` alongside the text block, so a
+  client gets parsed JSON instead of re-parsing a string. The text block is
+  unchanged, so older clients behave exactly as before.
+- `outputSchema` added for `find_user`, `list_projects` and
+  `get_work_package_attachments`, validated against live responses.
+- `initialize` now answers with the spec revision this server actually
+  implements instead of echoing whatever the client asked for. It previously
+  claimed support for any version a client named, including ones with features
+  this transport does not have.
+
 ## 1.2.0 (2026-09-01)
 
 - `get_work_package_activities` now returns `user` and `userId` on every entry.

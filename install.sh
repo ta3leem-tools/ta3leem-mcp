@@ -48,14 +48,16 @@ cloudflared access login "$OP_URL" || {
   exit 1
 }
 
-# ---- 4. copy files --------------------------------------------------
-mkdir -p ~/.local/bin ~/.local/lib/team-mcp 2>/dev/null || {
-  echo "Cannot create ~/.local/bin and ~/.local/lib/team-mcp."
-  echo "Check ownership and permissions on $HOME/.local, then re-run."
-  exit 1
-}
-cp "$HERE/gitea-mcp" ~/.local/bin/ && chmod +x ~/.local/bin/gitea-mcp
-cp "$HERE/openproject-mcp.mjs" "$HERE/selftest.mjs" ~/.local/lib/team-mcp/
+# ---- 4. run in place ------------------------------------------------
+# Both servers run straight out of this directory through launch.sh. Nothing is
+# copied into ~/.local, so when this is a git clone every future fix arrives via
+# launch.sh's own background pull, with no reinstall and no re-registering.
+chmod +x "$HERE/launch.sh" "$HERE/gitea-mcp" 2>/dev/null || true
+if ! git -C "$HERE" rev-parse --git-dir >/dev/null 2>&1; then
+  echo
+  echo "Note: this is not a git clone, so automatic updates are off."
+  echo "For updates without reinstalling, clone the repo instead of unpacking an archive."
+fi
 
 # /ta3leem-report slash command, user scope so it works in every repo
 mkdir -p ~/.claude/skills/ta3leem-report 2>/dev/null || {
@@ -71,17 +73,17 @@ cp "$HERE/skills/ta3leem-report/SKILL.md" ~/.claude/skills/ta3leem-report/
 # ---- 5. prove both servers work BEFORE registering ------------------
 echo
 echo "Testing both servers with your tokens..."
-ST="$HOME/.local/lib/team-mcp/selftest.mjs"
+ST="$HERE/selftest.mjs"
 
 GITEA_HOST="$GITEA_URL" GITEA_ACCESS_TOKEN="$GT" \
-  node "$ST" gitea get_me '{}' -- "$HOME/.local/bin/gitea-mcp" -t stdio -r -O "$GITEA_TOOLS" || {
+  node "$ST" gitea get_me '{}' -- bash "$HERE/launch.sh" gitea || {
     echo
     echo "Gitea check failed. Usual cause: bad or expired token. Regenerate and re-run."
     exit 1
   }
 
 OPENPROJECT_URL="$OP_URL" OPENPROJECT_API_KEY="$OP" CF_USE_CLOUDFLARED=1 \
-  node "$ST" openproject list_projects '{}' -- node "$HOME/.local/lib/team-mcp/openproject-mcp.mjs" || {
+  node "$ST" openproject list_projects '{}' -- bash "$HERE/launch.sh" openproject || {
     echo
     echo "OpenProject check failed. Usual causes:"
     echo "  - Cloudflare session missing/expired -> cloudflared access login $OP_URL"
@@ -96,7 +98,7 @@ claude mcp remove gitea --scope user 2>/dev/null || true
 if ! claude mcp add gitea --scope user \
   -e GITEA_HOST="$GITEA_URL" \
   -e GITEA_ACCESS_TOKEN="$GT" \
-  -- "$HOME/.local/bin/gitea-mcp" -t stdio -r -O "$GITEA_TOOLS"; then
+  -- bash "$HERE/launch.sh" gitea; then
   echo
   echo "Registering 'gitea' with Claude Code failed. Any previous gitea entry was removed."
   echo "Re-run this installer. If it keeps failing: claude mcp list"
@@ -108,7 +110,7 @@ if ! claude mcp add openproject --scope user \
   -e OPENPROJECT_URL="$OP_URL" \
   -e OPENPROJECT_API_KEY="$OP" \
   -e CF_USE_CLOUDFLARED=1 \
-  -- node "$HOME/.local/lib/team-mcp/openproject-mcp.mjs"; then
+  -- bash "$HERE/launch.sh" openproject; then
   echo
   echo "Registering 'openproject' failed, but 'gitea' is installed and working."
   echo "Re-run this installer to finish. If it keeps failing: claude mcp list"

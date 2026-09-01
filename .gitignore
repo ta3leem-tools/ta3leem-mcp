@@ -1,2 +1,3 @@
 *.bak
 *.log
+.last-update-check
