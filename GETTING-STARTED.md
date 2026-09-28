@@ -23,6 +23,7 @@ You need these installed:
 
 On macOS or an ARM machine, the installer also downloads a Gitea binary for
 your platform, so `curl` and `tar` must be available. Both come with macOS.
+The installer does not run on Windows directly.
 
 The repository is private. Ask Sandip to add your GitHub account before you
 clone it.
@@ -53,11 +54,15 @@ The installer:
 1. Checks that `node`, `claude` and `cloudflared` are installed.
 2. Asks for your Gitea token and your OpenProject key.
 3. Opens your browser once for the Cloudflare login that protects OpenProject.
-4. Calls both servers with your tokens and registers them with Claude Code only
+4. On macOS or ARM, downloads the matching Gitea binary and checks its checksum.
+5. Installs the `/ta3leem-report` command into `~/.claude/skills`. If you
+   already have one, the old copy is saved as `SKILL.md.bak`.
+6. Calls both servers with your tokens and registers them with Claude Code only
    if both answer.
 
-If anything fails, it stops and tells you why. Nothing is left half installed,
-and running `./install.sh` again is always safe.
+It stops at the first problem and tells you why. Running `./install.sh` again
+is always safe, so the fix for most install errors is to correct the cause and
+run it again.
 
 Leave the cloned folder where it is. Claude Code starts the servers from that
 path, so moving or deleting the folder breaks both. If you do move it, run
@@ -110,10 +115,13 @@ Daily report:
 /ta3leem-report
 /ta3leem-report yesterday
 /ta3leem-report 2026-09-01
+/ta3leem-report burhan
 ```
 
-The report is built from your OpenProject activity and the commits you wrote.
-A short commit message gives a short report line, so read it before you post it.
+The last form reports on someone else, for example a teammate you are covering
+for. The report is built from OpenProject activity plus the Gitea commits and
+PRs the person authored. A short commit message gives a short report line, so
+read the report before you post it.
 
 ## Habits that get better answers
 
@@ -131,14 +139,37 @@ A short commit message gives a short report line, so read it before you post it.
 
 ## Updates
 
-You don't need to do anything. Each time a server starts it checks the
-repository in the background, at most once every 6 hours, and pulls new code.
-The new version runs from your next Claude Code session.
+You don't need to do anything. When Sandip pushes a change to `main`, it
+reaches you on its own:
 
-The check skips itself if you have edited files in the clone, so leave the
-clone unmodified if you want updates. To update right away, run `git pull`
-inside the folder and restart Claude Code. `cat VERSION` shows what you have,
-and `CHANGELOG.md` lists what changed.
+1. Each time Claude Code starts a server, the server checks the repository in
+   the background, at most once every 6 hours.
+2. If there is new code, it runs `git pull --ff-only` and refreshes the
+   `/ta3leem-report` command.
+3. The new version is used from your next Claude Code session.
+
+So a change normally reaches you within 6 hours plus one restart. The check
+never delays startup, and if the network is down it tries again 6 hours later.
+
+Updates stop silently in two cases:
+
+- You edited a file in the install folder. The check skips any clone with local
+  changes so it never overwrites your work. Run `git status` in the folder; if it
+  lists modified files, move your work to a separate clone and undo the edits.
+- The install folder is not on `main`. Keep it on `main` and do not work in it.
+
+To update right away, run `git pull` in the folder and restart Claude Code.
+`cat VERSION` shows what you have, and `CHANGELOG.md` lists what changed. If a
+changelog entry says to re-run `./install.sh`, do that too, because some
+changes (a new token or setting) cannot arrive through `git pull`.
+
+## Found a bug or want to change something
+
+Open an issue on GitHub, or send a pull request. Only Sandip merges into
+`main`, because a merge goes out to everyone's machine within a few hours.
+Please don't merge a pull request yourself, even when GitHub offers the button,
+and don't push to `main`. `CONTRIBUTING.md` has the full rules and how to test
+a change before you send it.
 
 ## When something goes wrong
 
