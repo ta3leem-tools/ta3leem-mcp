@@ -226,7 +226,9 @@ async function main() {
     const res = await rpc("tools/call", { name: "list_projects", arguments: {} });
     if (res.isError) { throw new Error(res.content?.[0]?.text || "isError"); }
     if (!res.structuredContent) { throw new Error("no structuredContent"); }
-    pass(`${res.structuredContent.length} projects`);
+    const projects = res.structuredContent.items ?? res.structuredContent;
+    if (!Array.isArray(projects)) { throw new Error("structuredContent.items is not a list"); }
+    pass(`${projects.length} projects`);
   } catch (e) { fail(e.message); }
 
   step("tools/call get_me (real Gitea read)");
