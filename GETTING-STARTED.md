@@ -102,7 +102,10 @@ If you get real data back, you're set up.
 ## How to use it
 
 You never call the tools by name. Ask in plain language and include the ticket
-or PR number.
+or PR number. The plugin also brings two skills, `/ta3leem:pm` and
+`/ta3leem:gitea`, that tell Claude how to read our tickets and PRs properly.
+Claude loads them by itself when you ask about a ticket or a PR, so you rarely
+need to type them.
 
 Tickets:
 

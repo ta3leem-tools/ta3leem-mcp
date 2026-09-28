@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.8.0 (2026-09-28)
+
+- **Two new skills for plugin users: `/ta3leem:pm` and `/ta3leem:gitea`.**
+  They tell Claude how to read our OpenProject tickets and Gitea PRs: read the
+  comments and every text attachment before answering a ticket, trust an
+  attachment over a stale description, read PR discussion from the issue
+  comments (reviews come back near empty on our Gitea), and page through the
+  changed files of a big PR instead of trusting a partial diff. Claude loads
+  them on its own when you ask about a ticket or a PR. Both work with either
+  tool prefix, so they also behave on a machine that still has the old
+  `install.sh` servers registered. `install.sh` does not copy them.
+
 ## 1.7.0 (2026-09-28)
 
 - **Security: the OpenProject API key only goes to OpenProject.**

@@ -209,6 +209,7 @@ Worth knowing before you trust an answer:
 | `bin/` | Created by the installer on macOS or ARM only: the matching `gitea-mcp` build, not committed |
 | `selftest.mjs` | Proves your tokens work before anything gets registered |
 | `skills/ta3leem-report/` | The report command: `/ta3leem:ta3leem-report` from the plugin, or `/ta3leem-report` copied into `~/.claude/skills` by `install.sh` |
+| `skills/pm/`, `skills/gitea/` | How Claude should read tickets and PRs (attachments first, PR comments instead of reviews, paging big diffs). Plugin route only, as `/ta3leem:pm` and `/ta3leem:gitea`; Claude also loads them on its own when you ask about a ticket or a PR |
 | `USAGE.md` | Example prompts and the large-PR caveats |
 | `UPDATE.md` | How auto-update works, and the manual override |
 | `remote/` | Optional Cloudflare Worker for claude.ai, mobile and Cowork |
