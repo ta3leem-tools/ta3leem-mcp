@@ -27,13 +27,8 @@ You need these installed:
 The plugin runs on Linux and macOS, on x86-64 or ARM. It does not run on
 Windows directly.
 
-The repository is private, so two things need to be in place first:
-
-1. Sandip has added your GitHub account to the repository.
-2. git on your machine can reach GitHub without asking for a password. Claude
-   Code runs git with prompts turned off, so a password prompt makes the install
-   fail. If you already clone private GitHub repositories with an SSH key, you
-   are set. Otherwise run `gh auth login`, then `gh auth setup-git`.
+The repository is public, so you don't need a GitHub account or an invite to
+install. What you can see is still decided by your own tokens.
 
 ## Step 1: create your own tokens
 
@@ -195,7 +190,7 @@ a change before you send it.
 
 | What you see | Why | Fix |
 |---|---|---|
-| `marketplace add` or `plugin install` fails with an authentication or "not found" error | git cannot reach the private repository without a prompt | Check that Sandip added you, then run `gh auth login` and `gh auth setup-git`, and try again |
+| `marketplace add` or `plugin install` fails with a network or "not found" error | git cannot reach github.com, or the name is mistyped | Check you can open https://github.com/ta3leem-tools/ta3leem-mcp in a browser, then copy the command again |
 | OpenProject stops answering | The Cloudflare login expired, about every 24 hours | `cloudflared access login https://pm.ta3leem.dev`, then restart Claude Code |
 | A server shows Failed in `claude mcp list` | Usually a wrong or expired token, or no network | Run `/plugin configure ta3leem@ta3leem-mcp` in Claude Code, paste fresh tokens, restart |
 | Gitea shows Failed on a Mac or ARM machine | The first-start download of the Gitea binary failed | Check your network and restart Claude Code. It tries the download again on every start until it succeeds |

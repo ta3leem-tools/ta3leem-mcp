@@ -36,7 +36,7 @@ but it saves you a round trip to have them ready.
 | `node` v18+ | `node --version` | https://nodejs.org |
 | `claude` CLI | `claude --version` | `npm i -g @anthropic-ai/claude-code` |
 | `cloudflared` | `cloudflared --version` | `sudo apt install cloudflared` |
-| Repo access | you can open the repo page | ask the maintainer for an invite |
+| Network access to github.com | you can open the repo page | the repository is public, no invite needed |
 
 You also need two tokens. **Generate your own. Never reuse a teammate's**, since
 every action is logged as whoever owns the token, and their access follows them

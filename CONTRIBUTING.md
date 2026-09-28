@@ -40,9 +40,9 @@ Remove tokens, keys and client data from anything you paste.
 
 ## Sending a pull request
 
-1. Fork the repository on GitHub (Fork button, top right). Your role can read
-   the repository but not push to it, so pull requests come from your fork.
-   Clone your fork into its own folder:
+1. Fork the repository on GitHub (Fork button, top right). Only the
+   maintainer can push to it, so pull requests come from your fork. Clone your
+   fork into its own folder:
 
    ```bash
    git clone https://github.com/<your-username>/ta3leem-mcp.git ta3leem-mcp-dev
@@ -114,25 +114,13 @@ change did.
 
 ### Making the rules stick
 
-GitHub does not enforce the rules above on its own:
+The repository lives in the `ta3leem-tools` organization and is public.
 
-- In a private repository owned by a personal account, every collaborator gets
-  write access and can merge pull requests. Read-only collaborators are not
-  possible there.
-- Protected branches in a private repository need GitHub Pro on a personal
-  account.
-
-Two ways to enforce them:
-
-1. Move the repository to a free GitHub organization and give teammates the
-   Read or Triage role. Both roles can open issues and send pull requests from
-   forks, and neither can push or merge. Turn on forking of private
-   repositories in the organization settings so they can fork. After the move,
-   update the repository name in `GETTING-STARTED.md`, `README.md`, this file
-   and `.claude-plugin/plugin.json`. GitHub redirects the old URL. Even so,
-   ask `install.sh` users to run `git remote set-url origin <new url>` in their
-   install folder so updates do not depend on the redirect.
-2. Stay on the personal account with GitHub Pro. Add `.github/CODEOWNERS`
-   containing `* @sandiprv9898`, then protect `main` with "Require a pull
-   request before merging" and "Require review from Code Owners". A teammate
-   can still press merge after you approve, so rule 1 still matters.
+- Anyone with a GitHub account can open issues, fork it and send pull
+  requests. Only people with write access can push or merge, and today that is
+  the maintainer alone.
+- Don't give anyone the Write, Maintain or Admin role. Read and Triage are
+  enough for helping with issues, and neither can push or merge.
+- If a second maintainer ever needs write access, protect `main` first: on a
+  public repository in a free organization, branch protection is available.
+  Require a pull request before merging, and restrict who can push to `main`.
