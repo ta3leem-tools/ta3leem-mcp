@@ -21,8 +21,11 @@ Usage:
 
 - **Read-only.** Never create, update, or comment on anything in OpenProject or
   Gitea. No write tool exists in either server anyway.
-- **Use only `mcp__openproject__*` and `mcp__gitea__*` tools.** Never curl those
-  APIs.
+- **Use only the OpenProject and Gitea MCP tools.** Installed with `install.sh`
+  they are `mcp__openproject__*` and `mcp__gitea__*`; installed as the plugin
+  they are `mcp__plugin_ta3leem_openproject__*` and `mcp__plugin_ta3leem_gitea__*`.
+  Use whichever set this session has. Tool names below are written in the short
+  form. Never curl those APIs.
 - **Count only work the person actually did.** Their comments, their status
   changes, their authored commits and PRs.
   - EXCLUDE status moves made by others. A ticket whose only activity that day is
@@ -48,9 +51,9 @@ Usage:
 
 ## Step 0: resolve who and when
 
-1. **Who:** call `mcp__gitea__get_me` to get the Gitea handle and email of
+1. **Who:** call the Gitea `get_me` tool to get the Gitea handle and email of
    whoever is running this. That is the default subject of the report. Resolve the
-   matching OpenProject identity with `mcp__openproject__find_user` using the
+   matching OpenProject identity with the OpenProject `find_user` tool using the
    name from `get_me`.
    - If an argument names a person instead, resolve that person and report on them.
    - Commits can carry more than one email per person. Confirm which email the

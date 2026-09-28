@@ -5,9 +5,12 @@ ticket or a pull request by number and Claude reads the real thing. You don't
 have to copy text out of the browser.
 
 Everything is read-only. Claude can read tickets, comments, attachments, PRs,
-diffs, commits and files. It cannot comment, change a status, approve or merge,
-because those tools were never built into the servers.
+diffs, commits and files. It cannot comment, change a status, approve or merge.
+The OpenProject server has no write tools at all, and the Gitea server starts
+in read-only mode with a list of 13 reading tools, so its write tools never
+load.
 
+It installs as a Claude Code plugin, so there is no folder to clone or keep.
 Setup takes about 10 minutes, most of it spent creating tokens.
 
 ## Before you start
@@ -21,12 +24,16 @@ You need these installed:
 | cloudflared | `cloudflared --version` | Linux: `sudo apt install cloudflared`. macOS: `brew install cloudflared` |
 | git | `git --version` | your package manager |
 
-On macOS or an ARM machine, the installer also downloads a Gitea binary for
-your platform, so `curl` and `tar` must be available. Both come with macOS.
-The installer does not run on Windows directly.
+The plugin runs on Linux and macOS, on x86-64 or ARM. It does not run on
+Windows directly.
 
-The repository is private. Ask Sandip to add your GitHub account before you
-clone it.
+The repository is private, so two things need to be in place first:
+
+1. Sandip has added your GitHub account to the repository.
+2. git on your machine can reach GitHub without asking for a password. Claude
+   Code runs git with prompts turned off, so a password prompt makes the install
+   fail. If you already clone private GitHub repositories with an SSH key, you
+   are set. Otherwise run `gh auth login`, then `gh auth setup-git`.
 
 ## Step 1: create your own tokens
 
@@ -39,43 +46,56 @@ leaves.
 2. OpenProject key: open https://pm.ta3leem.dev, go to My Account, then Access
    tokens, then API.
 
-Keep both somewhere handy for the next step.
+Keep both somewhere handy for Step 3.
 
-## Step 2: install
+## Step 2: install the plugin
+
+Run these in a terminal:
 
 ```bash
-git clone https://github.com/sandiprv9898/ta3leem-mcp.git
-cd ta3leem-mcp
-./install.sh
+cloudflared access login https://pm.ta3leem.dev
+claude plugin marketplace add sandiprv9898/ta3leem-mcp
+claude plugin install ta3leem@ta3leem-mcp
 ```
 
-The installer:
+The first command opens your browser once for the Cloudflare login that
+protects OpenProject. The other two register our plugin catalog and install the
+plugin from it. The install ends with a note that 2 settings are not set yet.
+That is expected, and Step 3 sets them.
 
-1. Checks that `node`, `claude` and `cloudflared` are installed.
-2. Asks for your Gitea token and your OpenProject key.
-3. Opens your browser once for the Cloudflare login that protects OpenProject.
-4. On macOS or ARM, downloads the matching Gitea binary and checks its checksum.
-5. Installs the `/ta3leem-report` command into `~/.claude/skills`. If you
-   already have one, the old copy is saved as `SKILL.md.bak`.
-6. Calls both servers with your tokens and registers them with Claude Code only
-   if both answer.
+## Step 3: add your tokens
 
-It stops at the first problem and tells you why. Running `./install.sh` again
-is always safe, so the fix for most install errors is to correct the cause and
-run it again.
+Open Claude Code and run:
 
-Leave the cloned folder where it is. Claude Code starts the servers from that
-path, so moving or deleting the folder breaks both. If you do move it, run
-`./install.sh` again from the new location.
+```
+/plugin configure ta3leem@ta3leem-mcp
+```
 
-## Step 3: check it works
+Paste your Gitea token and your OpenProject key when asked. The input is masked,
+and Claude Code keeps both values in your system's credential store rather than
+in a settings file. Restart Claude Code afterwards.
+
+## Step 4: turn on automatic updates
+
+Claude Code leaves automatic updates off for a new plugin catalog, so switch
+them on once:
+
+1. In Claude Code, run `/plugin`.
+2. Open Marketplaces and select `ta3leem-mcp`.
+3. Select Enable auto-update.
+
+## Step 5: check it works
 
 ```bash
 claude mcp list
 ```
 
-You should see `gitea` and `openproject` both marked Connected. Then open
-Claude Code in any project and try:
+You should see `plugin:ta3leem:gitea` and `plugin:ta3leem:openproject`, both
+marked Connected. On a Mac or an ARM machine, the first start of the Gitea
+server downloads the binary for your platform (about 4 MB), so give it a few
+seconds.
+
+Then open Claude Code in any project and try:
 
 ```
 list my open PRs
@@ -112,10 +132,10 @@ read ticket 18843, then check whether PR 341 implements it
 Daily report:
 
 ```
-/ta3leem-report
-/ta3leem-report yesterday
-/ta3leem-report 2026-09-01
-/ta3leem-report burhan
+/ta3leem:ta3leem-report
+/ta3leem:ta3leem-report yesterday
+/ta3leem:ta3leem-report 2026-09-01
+/ta3leem:ta3leem-report burhan
 ```
 
 The last form reports on someone else, for example a teammate you are covering
@@ -139,34 +159,34 @@ read the report before you post it.
 
 ## Updates
 
-You don't need to do anything. When Sandip pushes a change to `main`, it
-reaches you on its own:
+With auto-update on (Step 4), Claude Code checks the catalog in the background
+after a session starts and installs any new version Sandip has pushed. The new
+version is used from your next session, or right away after `/reload-plugins`.
 
-1. Each time Claude Code starts a server, the server checks the repository in
-   the background, at most once every 6 hours.
-2. If there is new code, it runs `git pull --ff-only` and refreshes the
-   `/ta3leem-report` command.
-3. The new version is used from your next Claude Code session.
+To update by hand, run `claude plugin update ta3leem@ta3leem-mcp` and restart
+Claude Code. `CHANGELOG.md` in the repository lists what changed.
 
-So a change normally reaches you within 6 hours plus one restart. The check
-never delays startup, and if the network is down it tries again 6 hours later.
+## Moving from the old install.sh setup
 
-Updates stop silently in two cases:
+If you installed earlier by cloning the repository and running `./install.sh`,
+remove the old servers so you don't have two copies of every tool:
 
-- You edited a file in the install folder. The check skips any clone with local
-  changes so it never overwrites your work. Run `git status` in the folder; if it
-  lists modified files, move your work to a separate clone and undo the edits.
-- The install folder is not on `main`. Keep it on `main` and do not work in it.
+```bash
+claude mcp remove gitea --scope user
+claude mcp remove openproject --scope user
+```
 
-To update right away, run `git pull` in the folder and restart Claude Code.
-`cat VERSION` shows what you have, and `CHANGELOG.md` lists what changed. If a
-changelog entry says to re-run `./install.sh`, do that too, because some
-changes (a new token or setting) cannot arrive through `git pull`.
+Then follow Steps 2 to 5. The old `/ta3leem-report` command in
+`~/.claude/skills/ta3leem-report` can be deleted too, since the plugin brings
+its own as `/ta3leem:ta3leem-report`. Once the plugin works, you can delete the
+old clone.
+
+The `./install.sh` route still works if you prefer it. `README.md` describes it.
 
 ## Found a bug or want to change something
 
 Open an issue on GitHub, or send a pull request. Only Sandip merges into
-`main`, because a merge goes out to everyone's machine within a few hours.
+`main`, because a merge goes out to everyone's machine through auto-update.
 Please don't merge a pull request yourself, even when GitHub offers the button,
 and don't push to `main`. `CONTRIBUTING.md` has the full rules and how to test
 a change before you send it.
@@ -175,11 +195,11 @@ a change before you send it.
 
 | What you see | Why | Fix |
 |---|---|---|
+| `marketplace add` or `plugin install` fails with an authentication or "not found" error | git cannot reach the private repository without a prompt | Check that Sandip added you, then run `gh auth login` and `gh auth setup-git`, and try again |
 | OpenProject stops answering | The Cloudflare login expired, about every 24 hours | `cloudflared access login https://pm.ta3leem.dev`, then restart Claude Code |
-| `claude mcp list` shows Failed | Usually a wrong or expired token, or no network | Run `./install.sh` again. It prints the real error |
-| Both servers disappeared | The clone was moved or deleted | Run `./install.sh` from where the folder is now |
+| A server shows Failed in `claude mcp list` | Usually a wrong or expired token, or no network | Run `/plugin configure ta3leem@ta3leem-mcp` in Claude Code, paste fresh tokens, restart |
+| Gitea shows Failed on a Mac or ARM machine | The first-start download of the Gitea binary failed | Check your network and restart Claude Code. It tries the download again on every start until it succeeds |
 | A long ticket history looks cut off | Claude Code limits one tool result to 25k tokens | Add `"MAX_MCP_OUTPUT_TOKENS": "100000"` to the `env` block of `~/.claude/settings.json`, then restart |
-| `Checksum mismatch` during install on a Mac | The downloaded Gitea binary did not match its published checksum | Run `./install.sh` again. If it repeats, tell Sandip |
 
 ## More detail
 

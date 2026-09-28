@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.6.0 (2026-09-28)
+
+- **New: install as a Claude Code plugin.** The repository is now also a plugin
+  marketplace. Teammates run `claude plugin marketplace add
+  sandiprv9898/ta3leem-mcp` and `claude plugin install ta3leem@ta3leem-mcp`,
+  with no clone to keep and no installer to run. Tokens are asked for through
+  `/plugin configure` and kept in the system credential store. Updates arrive
+  through Claude Code's plugin auto-update once it is enabled for the
+  marketplace. `GETTING-STARTED.md` covers the steps.
+- The plugin declares no `version`, so each pushed commit is a new version.
+- In plugin mode the tools are named `mcp__plugin_ta3leem_gitea__*` and
+  `mcp__plugin_ta3leem_openproject__*`, and the report command is
+  `/ta3leem:ta3leem-report`. The report skill now works with either naming.
+- `launch.sh` skips its git self-update in plugin mode, and on macOS or ARM
+  downloads the Gitea binary once into the plugin data directory, which
+  survives plugin updates. The file name carries the gitea-mcp version, so a
+  future version bump fetches the new build instead of reusing the old one.
+- The Mac/ARM download moved into `scripts/fetch-gitea-mcp.sh`, shared by
+  `install.sh` and `launch.sh`. It extracts into a temporary directory inside
+  the target directory and renames the binary into place, so a failed extract
+  never leaves a broken binary and two sessions starting at once never run a
+  half-copied one.
+- The `install.sh` route is unchanged and keeps working.
+
 ## 1.5.0 (2026-09-28)
 
 - **Fix: list results no longer break strict clients.** MCP 2025-06-18 requires

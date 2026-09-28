@@ -1,0 +1,44 @@
+{
+  "name": "ta3leem",
+  "displayName": "ta3leem OpenProject + Gitea",
+  "description": "Read-only OpenProject tickets and Gitea pull requests inside Claude Code, plus the /ta3leem:ta3leem-report daily report.",
+  "author": { "name": "Sandip Vanodiya" },
+  "repository": "https://github.com/sandiprv9898/ta3leem-mcp",
+  "userConfig": {
+    "gitea_token": {
+      "type": "string",
+      "title": "Gitea access token",
+      "description": "Your own token from https://gitea.ta3leem.dev, Settings, Applications, Generate Token. Read scopes only.",
+      "required": true,
+      "sensitive": true
+    },
+    "openproject_api_key": {
+      "type": "string",
+      "title": "OpenProject API key",
+      "description": "Your own key from https://pm.ta3leem.dev, My Account, Access tokens, API.",
+      "required": true,
+      "sensitive": true
+    }
+  },
+  "mcpServers": {
+    "gitea": {
+      "command": "bash",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/launch.sh", "gitea"],
+      "env": {
+        "TA3LEEM_PLUGIN": "1",
+        "GITEA_HOST": "https://gitea.ta3leem.dev",
+        "GITEA_ACCESS_TOKEN": "${user_config.gitea_token}"
+      }
+    },
+    "openproject": {
+      "command": "bash",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/launch.sh", "openproject"],
+      "env": {
+        "TA3LEEM_PLUGIN": "1",
+        "OPENPROJECT_URL": "https://pm.ta3leem.dev",
+        "OPENPROJECT_API_KEY": "${user_config.openproject_api_key}",
+        "CF_USE_CLOUDFLARED": "1"
+      }
+    }
+  }
+}

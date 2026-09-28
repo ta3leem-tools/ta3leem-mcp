@@ -54,17 +54,31 @@ self_update() {
   fi
 }
 
-# Detached so it cannot hold the server's stdio open or outlive its usefulness.
-( self_update >/dev/null 2>&1 & ) </dev/null
+# As a Claude Code plugin, Claude Code owns updates and the plugin copy is not a
+# git clone, so the self-update only runs for an install.sh clone.
+if [ "$TA3LEEM_PLUGIN" != "1" ]; then
+  # Detached so it cannot hold the server's stdio open or outlive its usefulness.
+  ( self_update >/dev/null 2>&1 & ) </dev/null
+fi
 
 case "$WHAT" in
   openproject)
     exec node "$HERE/openproject-mcp.mjs"
     ;;
   gitea)
-    # bin/gitea-mcp is the platform build install.sh fetched on Mac or ARM.
     GITEA_BIN="$HERE/gitea-mcp"
-    [ -x "$HERE/bin/gitea-mcp" ] && GITEA_BIN="$HERE/bin/gitea-mcp"
+    if [ "$(uname -s)_$(uname -m)" != "Linux_x86_64" ]; then
+      # Plugin data survives plugin updates; the clone keeps its build in bin/.
+      if [ "$TA3LEEM_PLUGIN" = "1" ]; then
+        DATA="${CLAUDE_PLUGIN_DATA:-$HOME/.cache/ta3leem-mcp}"
+      else
+        DATA="$HERE/bin"
+      fi
+      # Prints the versioned binary path, downloading it only the first time.
+      GITEA_BIN="$(bash "$HERE/scripts/fetch-gitea-mcp.sh" "$DATA")"
+    fi
+    # The plugin cache copy is not documented to keep the exec bit.
+    [ -x "$GITEA_BIN" ] || chmod +x "$GITEA_BIN" 2>/dev/null || true
     exec "$GITEA_BIN" -t stdio -r -O "$GITEA_TOOLS"
     ;;
   *)

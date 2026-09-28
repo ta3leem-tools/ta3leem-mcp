@@ -1,0 +1,12 @@
+{
+  "name": "ta3leem-mcp",
+  "description": "ta3leem team tools for Claude Code",
+  "owner": { "name": "Sandip Vanodiya" },
+  "plugins": [
+    {
+      "name": "ta3leem",
+      "source": "./",
+      "description": "Read-only OpenProject and Gitea access, plus the daily report command"
+    }
+  ]
+}

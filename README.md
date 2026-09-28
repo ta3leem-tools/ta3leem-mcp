@@ -18,9 +18,10 @@ Install once, and you never touch it again: the servers update themselves.
 - **Attachments.** Screenshots and PDFs on a ticket, downloaded so Claude can
   actually look at them. The real spec often lives there rather than in the
   description.
-- **Read-only, by construction.** No tool in either server can create, edit,
-  comment, merge, approve, or mark anything as read. Not "configured off":
-  the code paths do not exist.
+- **Read-only.** No tool you get can create, edit, comment, merge, approve, or
+  mark anything as read. The OpenProject server has no write code at all. The
+  upstream Gitea server does ship write tools, and they never load: it starts
+  with `-r` (read-only mode) and a 13-tool allowlist.
 
 Everything runs under your own tokens, so you see exactly what you would see in
 the browser and nothing more.
@@ -46,6 +47,18 @@ when they leave.
 - **OpenProject key:** https://pm.ta3leem.dev then My Account, Access tokens, API.
 
 ## Install
+
+The easiest way is the Claude Code plugin. Nothing to clone, tokens go into
+your system's credential store, and updates arrive through Claude Code:
+
+```bash
+claude plugin marketplace add sandiprv9898/ta3leem-mcp
+claude plugin install ta3leem@ta3leem-mcp
+```
+
+`GETTING-STARTED.md` walks through it, including the token and auto-update
+steps. The rest of this section covers the older clone-and-install route, which
+still works.
 
 ```bash
 git clone https://github.com/sandiprv9898/ta3leem-mcp.git
@@ -186,13 +199,16 @@ Worth knowing before you trust an answer:
 
 | File | Purpose |
 |---|---|
-| `install.sh` | One-time setup. Safe to re-run whenever tokens change |
-| `launch.sh` | What Claude Code actually runs. Starts a server, then checks for updates in the background |
+| `.claude-plugin/` | Plugin manifest and marketplace catalog for the `claude plugin install` route |
+| `GETTING-STARTED.md` | Step-by-step setup for teammates, plugin route |
+| `install.sh` | One-time setup for the clone route. Safe to re-run whenever tokens change |
+| `scripts/fetch-gitea-mcp.sh` | Downloads and checksums the `gitea-mcp` build on macOS or ARM, for both routes |
+| `launch.sh` | What Claude Code actually runs. Starts a server; on the clone route it also checks for updates in the background |
 | `openproject-mcp.mjs` | Our OpenProject server. 7 read-only tools, zero npm dependencies |
 | `gitea-mcp` | Upstream Gitea MCP v1.3.0, run with `-r` and a 13-tool read-only allowlist |
 | `bin/` | Created by the installer on macOS or ARM only: the matching `gitea-mcp` build, not committed |
 | `selftest.mjs` | Proves your tokens work before anything gets registered |
-| `skills/ta3leem-report/` | The `/ta3leem-report` command, installed into `~/.claude/skills` |
+| `skills/ta3leem-report/` | The report command: `/ta3leem:ta3leem-report` from the plugin, or `/ta3leem-report` copied into `~/.claude/skills` by `install.sh` |
 | `USAGE.md` | Example prompts and the large-PR caveats |
 | `UPDATE.md` | How auto-update works, and the manual override |
 | `remote/` | Optional Cloudflare Worker for claude.ai, mobile and Cowork |
