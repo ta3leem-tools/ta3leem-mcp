@@ -155,6 +155,22 @@ read the report before you post it.
   partial without any warning (65 of 299 files in one test). Ask Claude to "page
   through all the changed files" instead.
 
+## Using it in claude.ai and the mobile app
+
+The same tickets and PRs are available in claude.ai in the browser and in the
+Claude mobile app, through a connector our organization already has. You don't
+need the plugin for this, only your two tokens from Step 1.
+
+1. In claude.ai, open Settings, then Connectors.
+2. Find `ta3leem` and click Connect.
+3. Enter the team passphrase (ask Sandip for it), your OpenProject key and
+   your Gitea token.
+
+Try `list my open PRs in mohesr/ums-v2-hr` in a new chat. Claude asks for
+permission the first time it uses the connector; choose Always allow. If
+OpenProject stops answering there while Gitea still works, tell Sandip, since
+the server's access token needs a refresh.
+
 ## Updates
 
 With auto-update on (Step 4), Claude Code checks the catalog in the background

@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.8.1 (2026-09-28)
+
+- **claude.ai is live.** The `ta3leem` connector is added to our claude.ai
+  organization. `GETTING-STARTED.md` has a new section on connecting it in the
+  browser and the mobile app.
+- **Worker tooling security fix.** `wrangler` goes from 4.127.1 to 4.142.0,
+  which brings `sharp` 0.35.4 and closes Dependabot alert #1 (libheif,
+  GHSA-g89c-p67h-r497 and GHSA-2jg2-4ch7-h545). `sharp` is a local build tool
+  only and was never part of the deployed Worker.
+
 ## 1.8.0 (2026-09-28)
 
 - **Two new skills for plugin users: `/ta3leem:pm` and `/ta3leem:gitea`.**
