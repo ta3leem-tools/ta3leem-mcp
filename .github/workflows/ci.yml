@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: remote/package-lock.json
+
+      - name: Shell syntax
+        run: for f in launch.sh install.sh scripts/*.sh remote/*.sh; do bash -n "$f"; done
+
+      - name: JavaScript syntax
+        run: for f in openproject-mcp.mjs selftest.mjs scripts/*.mjs remote/selftest-remote.mjs; do node --check "$f"; done
+
+      - name: JSON files parse
+        run: for f in .claude-plugin/*.json hooks/hooks.json; do node -e 'JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"))' "$f"; done
+
+      - name: Plugin manifest
+        run: npx --yes @anthropic-ai/claude-code plugin validate .
+
+      - name: Both servers answer tools/list with only read-only tools
+        run: |
+          OPENPROJECT_URL=https://op.example.invalid OPENPROJECT_API_KEY=ci node scripts/ci-smoke.mjs openproject
+          GITEA_HOST=https://gitea.example.invalid GITEA_ACCESS_TOKEN=ci node scripts/ci-smoke.mjs gitea
+
+      - name: Worker typecheck
+        working-directory: remote
+        run: |
+          npm ci --no-audit --no-fund
+          npx tsc --noEmit

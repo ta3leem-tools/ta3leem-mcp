@@ -69,6 +69,10 @@ Remove tokens, keys and client data from anything you paste.
    `claude --plugin-dir .`. For a change under `remote/`, run
    `npx tsc --noEmit` inside `remote/`. For a shell script, run `bash -n` on it.
 
+   GitHub Actions runs the offline checks on every pull request (syntax, the
+   plugin manifest, both servers' tool lists, the Worker typecheck). The live
+   token tests above are still yours to run, since CI has no tokens.
+
 4. Push the branch to your fork and open a pull request against `main` of the
    team repository. In the description, say what changed, why, and paste the
    test output.
