@@ -191,10 +191,10 @@ a change before you send it.
 | What you see | Why | Fix |
 |---|---|---|
 | `marketplace add` or `plugin install` fails with a network or "not found" error | git cannot reach github.com, or the name is mistyped | Check you can open https://github.com/ta3leem-tools/ta3leem-mcp in a browser, then copy the command again |
-| OpenProject stops answering | The Cloudflare login expired, about every 24 hours | `cloudflared access login https://pm.ta3leem.dev`, then restart Claude Code |
+| OpenProject stops answering, or Claude Code warns at startup that your OpenProject login expires soon | The Cloudflare login lasts about 24 hours | `cloudflared access login https://pm.ta3leem.dev`, then restart Claude Code |
 | A server shows Failed in `claude mcp list` | Usually a wrong or expired token, or no network | Run `/plugin configure ta3leem@ta3leem-mcp` in Claude Code, paste fresh tokens, restart |
 | Gitea shows Failed on a Mac or ARM machine | The first-start download of the Gitea binary failed | Check your network and restart Claude Code. It tries the download again on every start until it succeeds |
-| A long ticket history looks cut off | Claude Code limits one tool result to 25k tokens | Add `"MAX_MCP_OUTPUT_TOKENS": "100000"` to the `env` block of `~/.claude/settings.json`, then restart |
+| A very long ticket history still looks cut off | The ticket tools allow 200,000 characters per result | Ask Claude to read the history in chunks, for example "read the activities of 18843 in pages of 50" |
 
 ## More detail
 

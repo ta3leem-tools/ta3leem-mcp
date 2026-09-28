@@ -167,7 +167,7 @@ tokens rather than a shared key. It is optional, it changes nothing here, and
 | `MISSING: node` / `claude` / `cloudflared` | Not on PATH | Install it, re-run `./install.sh` |
 | Gitea check failed during install | Token wrong, expired, or revoked | Regenerate the token, re-run `./install.sh` |
 | Both servers vanished | The clone was moved or deleted | Re-run `./install.sh` from where it lives now |
-| A long ticket's history looks cut off | Claude Code caps one tool result at 25k tokens | Add `"MAX_MCP_OUTPUT_TOKENS": "100000"` to the `env` block of `~/.claude/settings.json`, restart |
+| A very long ticket's history still looks cut off | The ticket tools allow 200,000 characters per result; beyond that Claude Code saves the rest to a file | Ask Claude to read the history in chunks, for example "read the activities of 18843 in pages of 50" |
 | `claude mcp list` shows Failed | Usually a bad token or no network | Re-run `./install.sh`, it reports the real error |
 
 Re-running `./install.sh` is always safe. It replaces one server's registration
@@ -176,7 +176,7 @@ at a time, so a failure never leaves you with neither.
 ## Platform
 
 Linux and macOS, on x86-64 or ARM. The committed `gitea-mcp` is the linux
-x86-64 build. On any other platform `./install.sh` downloads the matching v1.3.0
+x86-64 build. On any other platform `./install.sh` downloads the matching v1.7.0
 build from gitea.com, checks it against the release checksums, and puts it in
 `bin/`, which git ignores. The committed binary stays untouched, so automatic
 updates keep working. You need `curl` and `tar` for that step.
@@ -205,7 +205,7 @@ Worth knowing before you trust an answer:
 | `scripts/fetch-gitea-mcp.sh` | Downloads and checksums the `gitea-mcp` build on macOS or ARM, for both routes |
 | `launch.sh` | What Claude Code actually runs. Starts a server; on the clone route it also checks for updates in the background |
 | `openproject-mcp.mjs` | Our OpenProject server. 7 read-only tools, zero npm dependencies |
-| `gitea-mcp` | Upstream Gitea MCP v1.3.0, run with `-r` and a 13-tool read-only allowlist |
+| `gitea-mcp` | Upstream Gitea MCP v1.7.0, run with `-r` and a 13-tool read-only allowlist |
 | `bin/` | Created by the installer on macOS or ARM only: the matching `gitea-mcp` build, not committed |
 | `selftest.mjs` | Proves your tokens work before anything gets registered |
 | `skills/ta3leem-report/` | The report command: `/ta3leem:ta3leem-report` from the plugin, or `/ta3leem-report` copied into `~/.claude/skills` by `install.sh` |

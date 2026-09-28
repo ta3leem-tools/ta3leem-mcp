@@ -11,7 +11,7 @@
 
 set -e
 DEST="$1"
-GITEA_MCP_VERSION="1.3.0"
+GITEA_MCP_VERSION="1.7.0"
 [ -n "$DEST" ] || { echo "Usage: fetch-gitea-mcp.sh DEST_DIR" >&2; exit 64; }
 
 PLATFORM="$(uname -s)_$(uname -m)"

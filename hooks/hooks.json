@@ -1,0 +1,18 @@
+{
+  "description": "Warn at session start when the Cloudflare Access login for OpenProject has expired or expires within 2 hours.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/check-cf-session.sh"],
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

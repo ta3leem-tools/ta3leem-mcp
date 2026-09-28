@@ -1,5 +1,35 @@
 # Changelog
 
+## 1.7.0 (2026-09-28)
+
+- **Security: the OpenProject API key only goes to OpenProject.**
+  `download_attachment` compared the download URL to the OpenProject address as
+  a string prefix, so a lookalike host such as `pm.ta3leem.dev.example.com`
+  would have received the API key and the Cloudflare headers. It now compares
+  parsed origins, stops automatic redirects, and follows one redirect by hand,
+  sending credentials only when the target is OpenProject itself.
+- **Security: safer attachment files.** Downloads go into a new private
+  directory (`mkdtemp`) instead of a predictable `/tmp` name, are opened with
+  `wx` so an existing file or symlink is never overwritten, keep only a short
+  alphanumeric extension, and are capped at 50 MB.
+- **Ticket ids are validated** before they go into an API path, so a value
+  like `18390/../1` is rejected.
+- **Long ticket histories fit.** `search_work_packages`, `get_work_package`
+  and `get_work_package_activities` declare
+  `anthropic/maxResultSizeChars: 200000`, so Claude Code keeps up to 200,000
+  characters of their output without anyone setting `MAX_MCP_OUTPUT_TOKENS`.
+- **New: a warning when your OpenProject login is about to expire.** The
+  plugin ships a `SessionStart` hook (`hooks/hooks.json`,
+  `scripts/check-cf-session.sh`) that reads the Cloudflare Access token's
+  expiry and, when it has less than 2 hours left or is gone, shows the
+  `cloudflared access login` command at the start of the session.
+- **gitea-mcp upgraded from 1.3.0 to 1.7.0**, which includes the upstream Go
+  toolchain security update. All 13 allowlisted tools still exist, and `-r`
+  still removes write tools before the allowlist applies. Mac and ARM
+  installs fetch the matching 1.7.0 build on their next start.
+- `main` is now a protected branch: pull requests are required, and force
+  pushes and branch deletion are blocked.
+
 ## 1.6.0 (2026-09-28)
 
 - **New: install as a Claude Code plugin.** The repository is now also a plugin

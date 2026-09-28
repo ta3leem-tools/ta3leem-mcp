@@ -1,14 +1,15 @@
 #!/usr/bin/env node
 /**
- * OpenProject MCP server — READ-ONLY, zero npm dependencies.
+ * OpenProject MCP server: READ-ONLY, zero npm dependencies.
  *
- * Exposes 6 tools over MCP stdio for Claude Code (and any MCP client):
+ * Exposes 7 tools over MCP stdio for Claude Code (and any MCP client):
+ *   - find_user
  *   - list_projects
  *   - search_work_packages
  *   - get_work_package
  *   - get_work_package_activities      (comments + journal)
  *   - get_work_package_attachments     (list files/images with download URLs)
- *   - download_attachment              (fetch binary → /tmp/op-attachment-{id}.ext)
+ *   - download_attachment              (fetch binary → <tmpdir>/op-attachment-XXXXXX/{id}.ext)
  *
  * Every request is HTTP GET. There is no code path that can create, update,
  * comment, or mark anything read in OpenProject.
@@ -25,6 +26,9 @@
 
 import { execFileSync } from "node:child_process";
 import { createInterface } from "node:readline";
+import { mkdtemp, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const OP_URL = (process.env.OPENPROJECT_URL || "").replace(/\/$/, "");
 const API_KEY = process.env.OPENPROJECT_API_KEY || "";
@@ -81,7 +85,7 @@ async function opGet(path, params = {}) {
     // Cloudflare Access served its login page instead of the API
     throw new Error(
       `Cloudflare Access blocked the request (got HTML, not JSON). ` +
-      `Run: cloudflared access login ${OP_URL} — and ensure CF_USE_CLOUDFLARED=1 is set.`
+      `Run: cloudflared access login ${OP_URL} and ensure CF_USE_CLOUDFLARED=1 is set.`
     );
   }
   return JSON.parse(body);
@@ -129,10 +133,35 @@ async function opGetAllPages(path, params = {}) {
   return out;
 }
 
+/** Ids go straight into URL paths, so anything but a positive integer is rejected. */
+function positiveId(v, label = "id") {
+  const n = typeof v === "string" && /^\d+$/.test(v) ? Number(v) : v;
+  if (!Number.isSafeInteger(n) || n <= 0) {
+    throw new Error(`${label} must be a positive integer, got ${JSON.stringify(v)}`);
+  }
+  return n;
+}
 
-// ---- tool implementations (compact output — trim HAL noise) ----
+function originOf(url) {
+  try {
+    return new URL(url).origin;
+  } catch {
+    throw new Error(`Invalid URL: ${url}`);
+  }
+}
 
-// API returns UTC; team works in IST — convert every timestamp.
+/** Last dot-part of the filename, or "bin" when it is missing or unsafe for a path. */
+function safeExt(filename) {
+  const parts = String(filename ?? "").split(".");
+  const ext = parts.length > 1 ? parts.pop().toLowerCase() : "";
+  return /^[a-z0-9]{1,8}$/.test(ext) ? ext : "bin";
+}
+
+const MAX_ATTACHMENT_BYTES = 50 * 1024 * 1024;
+
+// ---- tool implementations (compact output: trim HAL noise) ----
+
+// API returns UTC; team works in IST, so convert every timestamp.
 function ist(iso) {
   if (!iso) return null;
   return new Date(iso).toLocaleString("en-IN", {
@@ -266,6 +295,7 @@ const TOOLS = {
   search_work_packages: {
     description:
       "Search work packages by free-text subject and/or filters. Returns newest first.",
+    maxResultSizeChars: 200000,
     inputSchema: {
       type: "object",
       properties: {
@@ -273,7 +303,7 @@ const TOOLS = {
         project_id: { type: "number", description: "Limit to one project id" },
         status: { type: "string", enum: ["open", "closed", "all"], description: "Default open" },
         assignee_me: { type: "boolean", description: "Only work packages assigned to me" },
-        assignee_name: { type: "string", description: "Assignee by (partial) name, e.g. 'burhan' — resolved via principals lookup" },
+        assignee_name: { type: "string", description: "Assignee by (partial) name, e.g. 'burhan', resolved via principals lookup" },
         updated_since: { type: "string", description: "Only WPs updated on/after this date (YYYY-MM-DD)" },
         updated_until: { type: "string", description: "Only WPs updated on/before this date (YYYY-MM-DD, inclusive). Default: today" },
         page_size: { type: "number", description: "Max results, default 20" },
@@ -291,7 +321,7 @@ const TOOLS = {
       if (a.assignee_name) {
         const pf = JSON.stringify([{ name: { operator: "~", values: [a.assignee_name] } }]);
         const found = (await opGet("/api/v3/principals", { filters: pf }))._embedded.elements;
-        if (!found.length) throw new Error(`No OpenProject user matches "${a.assignee_name}" — try find_user`);
+        if (!found.length) throw new Error(`No OpenProject user matches "${a.assignee_name}". Try find_user`);
         filters.push({ assignee: { operator: "=", values: [String(found[0].id)] } });
       }
       if (a.updated_since) {
@@ -317,6 +347,7 @@ const TOOLS = {
   },
   get_work_package: {
     description: "Get one work package by id: full description, plus its parent, child tickets and related tickets.",
+    maxResultSizeChars: 200000,
     inputSchema: {
       type: "object",
       properties: { id: { type: "number" } },
@@ -324,15 +355,17 @@ const TOOLS = {
       additionalProperties: false,
     },
     async run(a) {
+      const id = positiveId(a.id);
       const [wp, links] = await Promise.all([
-        opGet(`/api/v3/work_packages/${a.id}`),
-        wpLinks(a.id),
+        opGet(`/api/v3/work_packages/${id}`),
+        wpLinks(id),
       ]);
       return { ...wpSummary(wp), ...links };
     },
   },
   get_work_package_activities: {
     description: "Get comments + change journal for a work package, oldest first. Returns the whole journal. On a very long ticket use limit+offset to pull it in chunks.",
+    maxResultSizeChars: 200000,
     inputSchema: {
       type: "object",
       properties: {
@@ -344,7 +377,7 @@ const TOOLS = {
       additionalProperties: false,
     },
     async run(a) {
-      const data = await opGet(`/api/v3/work_packages/${a.id}/activities`);
+      const data = await opGet(`/api/v3/work_packages/${positiveId(a.id)}/activities`);
       const from = a.offset || 0;
       const all = data._embedded.elements;
       const slice = a.limit ? all.slice(from, from + a.limit) : all.slice(from);
@@ -385,7 +418,7 @@ const TOOLS = {
       additionalProperties: false,
     },
     async run(a) {
-      const data = await opGet(`/api/v3/work_packages/${a.id}/attachments`);
+      const data = await opGet(`/api/v3/work_packages/${positiveId(a.id)}/attachments`);
       return data._embedded.elements.map((att) => ({
         id: att.id,
         fileName: att.fileName,
@@ -401,7 +434,7 @@ const TOOLS = {
   download_attachment: {
     // Reads from OpenProject but writes a local file, so it is not read-only.
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
-    description: "Download an attachment by ID and save it to /tmp. Returns the local file path so Claude Code can Read/view it as an image.",
+    description: "Download an attachment by ID (max 50 MB) and save it to a fresh private temp directory. Returns the local file path so Claude Code can Read/view it as an image.",
     inputSchema: {
       type: "object",
       properties: {
@@ -412,32 +445,58 @@ const TOOLS = {
       additionalProperties: false,
     },
     async run(a) {
-      const att = await opGet(`/api/v3/attachments/${a.id}`);
+      const id = positiveId(a.id);
+      const att = await opGet(`/api/v3/attachments/${id}`);
       const downloadUrl = att._links?.staticDownloadLocation?.href || att._links?.downloadLocation?.href;
-      if (!downloadUrl) throw new Error("No download URL found for attachment " + a.id);
+      if (!downloadUrl) throw new Error("No download URL found for attachment " + id);
 
-      // Relative paths come from OpenProject (e.g. /api/v3/attachments/123/content) — make absolute.
+      // Relative paths come from OpenProject (e.g. /api/v3/attachments/123/content), so make them absolute.
       const absoluteUrl = downloadUrl.startsWith("/") ? OP_URL + downloadUrl : downloadUrl;
-      const isSameHost = absoluteUrl.startsWith(OP_URL);
-      const headers = isSameHost
+      const opOrigin = originOf(OP_URL);
+      // Credentials go only to the OpenProject origin, never to a presigned storage URL.
+      const headersFor = (url) => originOf(url) === opOrigin
         ? { Authorization: "Basic " + Buffer.from("apikey:" + API_KEY).toString("base64"), ...cfHeaders() }
         : {};
-
-      const res = await fetch(absoluteUrl, {
-        headers,
+      const get = (url) => fetch(url, {
+        headers: headersFor(url),
+        redirect: "manual",
         signal: AbortSignal.timeout(60000),
       });
+
+      let res = await get(absoluteUrl);
+      const location = res.status >= 300 && res.status < 400 ? res.headers.get("location") : null;
+      if (location) {
+        let next;
+        try {
+          next = new URL(location, absoluteUrl).href;
+        } catch {
+          throw new Error(`Invalid redirect URL: ${location}`);
+        }
+        await res.body?.cancel();
+        res = await get(next); // one hop only; a second redirect fails below
+      }
       if (!res.ok) {
         const body = await res.text();
         throw new Error(`Download failed ${res.status}: ${body.slice(0, 300)}`);
       }
 
-      const ext = a.filename.includes(".") ? a.filename.split(".").pop().toLowerCase() : "bin";
-      const tmpPath = `/tmp/op-attachment-${a.id}.${ext}`;
+      const tooBig = () => new Error(`Attachment ${id} exceeds the ${MAX_ATTACHMENT_BYTES / 1024 / 1024} MB limit`);
+      if (Number(res.headers.get("content-length")) > MAX_ATTACHMENT_BYTES) {
+        await res.body?.cancel();
+        throw tooBig();
+      }
+      const chunks = [];
+      let size = 0;
+      for await (const chunk of res.body ?? []) {
+        size += chunk.length;
+        if (size > MAX_ATTACHMENT_BYTES) throw tooBig();
+        chunks.push(chunk);
+      }
+      const buffer = Buffer.concat(chunks);
 
-      const { writeFile } = await import("node:fs/promises");
-      const buffer = Buffer.from(await res.arrayBuffer());
-      await writeFile(tmpPath, buffer);
+      const dir = await mkdtemp(join(tmpdir(), "op-attachment-"));
+      const tmpPath = join(dir, `${id}.${safeExt(a.filename)}`);
+      await writeFile(tmpPath, buffer, { flag: "wx" });
 
       return { path: tmpPath, size: buffer.length, contentType: att.contentType };
     },
@@ -482,7 +541,7 @@ rl.on("line", async (line) => {
   if (!line) return;
   let req;
   try { req = JSON.parse(line); } catch { return; }
-  if (req.id === undefined) return; // notification — nothing to answer
+  if (req.id === undefined) return; // notification: nothing to answer
 
   try {
     if (req.method === "initialize") {
@@ -508,6 +567,7 @@ rl.on("line", async (line) => {
             inputSchema: t.inputSchema,
             ...(t.outputSchema ? { outputSchema: wrapListSchema(t.outputSchema) } : {}),
             annotations: t.annotations ?? READ_ONLY,
+            ...(t.maxResultSizeChars ? { _meta: { "anthropic/maxResultSizeChars": t.maxResultSizeChars } } : {}),
           })),
         },
       });
