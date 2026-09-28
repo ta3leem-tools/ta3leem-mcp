@@ -54,7 +54,7 @@ Run these in a terminal:
 
 ```bash
 cloudflared access login https://pm.ta3leem.dev
-claude plugin marketplace add sandiprv9898/ta3leem-mcp
+claude plugin marketplace add ta3leem-tools/ta3leem-mcp
 claude plugin install ta3leem@ta3leem-mcp
 ```
 

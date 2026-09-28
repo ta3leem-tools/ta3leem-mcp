@@ -3,7 +3,7 @@
   "displayName": "ta3leem OpenProject + Gitea",
   "description": "Read-only OpenProject tickets and Gitea pull requests inside Claude Code, plus the /ta3leem:ta3leem-report daily report.",
   "author": { "name": "Sandip Vanodiya" },
-  "repository": "https://github.com/sandiprv9898/ta3leem-mcp",
+  "repository": "https://github.com/ta3leem-tools/ta3leem-mcp",
   "userConfig": {
     "gitea_token": {
       "type": "string",

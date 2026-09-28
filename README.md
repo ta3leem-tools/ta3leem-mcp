@@ -52,7 +52,7 @@ The easiest way is the Claude Code plugin. Nothing to clone, tokens go into
 your system's credential store, and updates arrive through Claude Code:
 
 ```bash
-claude plugin marketplace add sandiprv9898/ta3leem-mcp
+claude plugin marketplace add ta3leem-tools/ta3leem-mcp
 claude plugin install ta3leem@ta3leem-mcp
 ```
 
@@ -61,7 +61,7 @@ steps. The rest of this section covers the older clone-and-install route, which
 still works.
 
 ```bash
-git clone https://github.com/sandiprv9898/ta3leem-mcp.git
+git clone https://github.com/ta3leem-tools/ta3leem-mcp.git
 cd ta3leem-mcp
 ./install.sh
 ```
