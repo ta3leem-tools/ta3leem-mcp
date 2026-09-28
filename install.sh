@@ -53,6 +53,49 @@ cloudflared access login "$OP_URL" || {
 # copied into ~/.local, so when this is a git clone every future fix arrives via
 # launch.sh's own background pull, with no reinstall and no re-registering.
 chmod +x "$HERE/launch.sh" "$HERE/gitea-mcp" 2>/dev/null || true
+
+# The committed gitea-mcp is linux x86-64. Anything else gets the matching
+# upstream build in bin/ (gitignored), so git pull never fights over the binary.
+GITEA_MCP_VERSION="1.3.0"
+PLATFORM="$(uname -s)_$(uname -m)"
+case "$PLATFORM" in
+  Linux_x86_64) ;;
+  Darwin_arm64|Darwin_x86_64|Linux_arm64|Linux_aarch64)
+    [ "$PLATFORM" = "Linux_aarch64" ] && PLATFORM="Linux_arm64"
+    echo
+    echo "Fetching gitea-mcp v$GITEA_MCP_VERSION for $PLATFORM..."
+    for c in curl tar; do
+      command -v "$c" >/dev/null || { echo "MISSING: $c (needed to fetch gitea-mcp for $PLATFORM)"; exit 1; }
+    done
+    if command -v sha256sum >/dev/null; then SHA="sha256sum"; else SHA="shasum -a 256"; fi
+    REL="https://gitea.com/gitea/gitea-mcp/releases/download/v$GITEA_MCP_VERSION"
+    TGZ="gitea-mcp_$PLATFORM.tar.gz"
+    TMP="$(mktemp -d)"
+    if ! curl -fsSL --max-time 120 -o "$TMP/$TGZ" "$REL/$TGZ" \
+      || ! curl -fsSL --max-time 30 -o "$TMP/sums.txt" "$REL/gitea-mcp_${GITEA_MCP_VERSION}_checksums.txt"; then
+      echo "Download from gitea.com failed. Check your network, then re-run."
+      exit 1
+    fi
+    want="$(grep " $TGZ\$" "$TMP/sums.txt" | awk '{print $1}')"
+    got="$(cd "$TMP" && $SHA "$TGZ" | awk '{print $1}')"
+    if [ -z "$want" ] || [ "$want" != "$got" ]; then
+      echo "Checksum mismatch for $TGZ. Nothing was installed."
+      exit 1
+    fi
+    mkdir -p "$HERE/bin"
+    tar -xzf "$TMP/$TGZ" -C "$HERE/bin" gitea-mcp
+    chmod +x "$HERE/bin/gitea-mcp"
+    # Gatekeeper quarantines downloads; an unsigned binary would be killed on launch.
+    [ "$(uname -s)" = "Darwin" ] && xattr -d com.apple.quarantine "$HERE/bin/gitea-mcp" 2>/dev/null || true
+    echo "Installed $HERE/bin/gitea-mcp"
+    ;;
+  *)
+    echo
+    echo "Unsupported platform: $PLATFORM. Supported: Linux or macOS, x86-64 or ARM."
+    exit 1
+    ;;
+esac
+
 if ! git -C "$HERE" rev-parse --git-dir >/dev/null 2>&1; then
   echo
   echo "Note: this is not a git clone, so automatic updates are off."

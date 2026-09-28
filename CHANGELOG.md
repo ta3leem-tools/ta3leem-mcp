@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.5.0 (2026-09-28)
+
+- **Fix: list results no longer break strict clients.** MCP 2025-06-18 requires
+  `structuredContent` to be an object, but `find_user`, `list_projects` and
+  `get_work_package_attachments` returned a bare array. List results are now
+  wrapped as `{ items: [...] }`, and the declared `outputSchema` is wrapped to
+  match. Applied to both the local OpenProject server and the remote Worker.
+  The Worker needs a redeploy to pick it up.
+- **Fix: automatic updates now run on macOS.** `launch.sh` called `timeout`,
+  which macOS does not ship, so every background pull failed silently. It now
+  falls back to git's own low-speed abort, and reads the stamp file's age with
+  BSD `stat` when GNU `stat` is missing.
+- **New: `install.sh` fetches the right `gitea-mcp` on macOS and ARM.** It
+  downloads the matching v1.3.0 release from gitea.com, verifies the SHA-256
+  against the release checksums, and installs it to the gitignored `bin/`.
+  `launch.sh` prefers `bin/gitea-mcp` when present. No more hand-replacing the
+  committed binary, which also used to switch auto-update off because the clone
+  then had local edits.
+
 ## 1.4.0 (2026-09-01)
 
 - **New: `remote/`, a public HTTPS server for the hosted Claude clients.**

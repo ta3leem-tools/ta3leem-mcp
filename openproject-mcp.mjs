@@ -454,6 +454,24 @@ const TOOLS = {
  */
 const PROTOCOL_VERSION = "2025-06-18";
 
+/**
+ * MCP 2025-06-18 requires structuredContent to be a JSON object, so a tool that
+ * naturally returns a list is wrapped under `items` instead of being sent bare.
+ * A bare array made strict clients reject the whole result.
+ */
+function structuredResult(value) {
+  if (Array.isArray(value)) return { items: value };
+  if (value && typeof value === "object") return value;
+  return { value };
+}
+
+/** Same wrap for the declared schema, so outputSchema keeps matching the payload. */
+function wrapListSchema(schema) {
+  return schema?.type === "array"
+    ? { type: "object", properties: { items: schema }, required: ["items"] }
+    : schema;
+}
+
 function send(msg) {
   process.stdout.write(JSON.stringify(msg) + "\n");
 }
@@ -488,7 +506,7 @@ rl.on("line", async (line) => {
             title: TITLES[name],
             description: t.description,
             inputSchema: t.inputSchema,
-            ...(t.outputSchema ? { outputSchema: t.outputSchema } : {}),
+            ...(t.outputSchema ? { outputSchema: wrapListSchema(t.outputSchema) } : {}),
             annotations: t.annotations ?? READ_ONLY,
           })),
         },
@@ -501,7 +519,7 @@ rl.on("line", async (line) => {
         jsonrpc: "2.0", id: req.id,
         result: {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-          structuredContent: result,
+          structuredContent: structuredResult(result),
         },
       });
     } else if (req.method === "ping") {

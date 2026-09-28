@@ -2,3 +2,4 @@
 *.log
 .last-update-check
 .wrangler/
+bin/

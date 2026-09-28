@@ -21,7 +21,9 @@ self_update() {
 
   # At most one check per MAX_AGE_HOURS.
   if [ -f "$STAMP" ]; then
-    age_s=$(( $(date +%s) - $(stat -c %Y "$STAMP" 2>/dev/null || echo 0) ))
+    # GNU stat first, then BSD/macOS stat.
+    mtime=$(stat -c %Y "$STAMP" 2>/dev/null || stat -f %m "$STAMP" 2>/dev/null || echo 0)
+    age_s=$(( $(date +%s) - mtime ))
     if [ "$age_s" -lt $(( MAX_AGE_HOURS * 3600 )) ]; then
       return 0
     fi
@@ -33,7 +35,13 @@ self_update() {
     return 0
   fi
 
-  timeout 60 git -C "$HERE" pull --quiet --ff-only >/dev/null 2>&1 || return 0
+  # macOS ships no `timeout`; there git's own low-speed abort stops a hung pull.
+  if command -v timeout >/dev/null 2>&1; then
+    timeout 60 git -C "$HERE" pull --quiet --ff-only >/dev/null 2>&1 || return 0
+  else
+    git -C "$HERE" -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=30 \
+      pull --quiet --ff-only >/dev/null 2>&1 || return 0
+  fi
 
   # Keep the slash commands in step with whatever just landed.
   if [ -d "$HERE/skills" ]; then
@@ -54,7 +62,10 @@ case "$WHAT" in
     exec node "$HERE/openproject-mcp.mjs"
     ;;
   gitea)
-    exec "$HERE/gitea-mcp" -t stdio -r -O "$GITEA_TOOLS"
+    # bin/gitea-mcp is the platform build install.sh fetched on Mac or ARM.
+    GITEA_BIN="$HERE/gitea-mcp"
+    [ -x "$HERE/bin/gitea-mcp" ] && GITEA_BIN="$HERE/bin/gitea-mcp"
+    exec "$GITEA_BIN" -t stdio -r -O "$GITEA_TOOLS"
     ;;
   *)
     echo "Usage: launch.sh openproject|gitea" >&2

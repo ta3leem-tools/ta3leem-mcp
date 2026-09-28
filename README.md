@@ -162,10 +162,11 @@ at a time, so a failure never leaves you with neither.
 
 ## Platform
 
-The committed `gitea-mcp` is a **linux x86-64** binary. On macOS or ARM, download
-the matching v1.3.0 build from gitea.com/gitea/gitea-mcp, replace the copy in
-your clone, then install as normal. Keep that replacement local and uncommitted,
-so `git pull` does not fight you over it.
+Linux and macOS, on x86-64 or ARM. The committed `gitea-mcp` is the linux
+x86-64 build. On any other platform `./install.sh` downloads the matching v1.3.0
+build from gitea.com, checks it against the release checksums, and puts it in
+`bin/`, which git ignores. The committed binary stays untouched, so automatic
+updates keep working. You need `curl` and `tar` for that step.
 
 ## Known limits
 
@@ -189,6 +190,7 @@ Worth knowing before you trust an answer:
 | `launch.sh` | What Claude Code actually runs. Starts a server, then checks for updates in the background |
 | `openproject-mcp.mjs` | Our OpenProject server. 7 read-only tools, zero npm dependencies |
 | `gitea-mcp` | Upstream Gitea MCP v1.3.0, run with `-r` and a 13-tool read-only allowlist |
+| `bin/` | Created by the installer on macOS or ARM only: the matching `gitea-mcp` build, not committed |
 | `selftest.mjs` | Proves your tokens work before anything gets registered |
 | `skills/ta3leem-report/` | The `/ta3leem-report` command, installed into `~/.claude/skills` |
 | `USAGE.md` | Example prompts and the large-PR caveats |

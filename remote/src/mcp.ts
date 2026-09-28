@@ -21,6 +21,24 @@ const SERVER_INFO = { name: "ta3leem-mcp-remote", version: "1.0.0" };
 
 type Json = Record<string, any>;
 
+/**
+ * MCP 2025-06-18 requires structuredContent to be a JSON object, so a tool that
+ * naturally returns a list is wrapped under `items` instead of being sent bare.
+ * A bare array made strict clients reject the whole result.
+ */
+function structuredResult(value: unknown): Json {
+  if (Array.isArray(value)) { return { items: value }; }
+  if (value && typeof value === "object") { return value as Json; }
+  return { value };
+}
+
+/** Same wrap for the declared schema, so outputSchema keeps matching the payload. */
+function wrapListSchema(schema: Record<string, unknown>): Record<string, unknown> {
+  return schema.type === "array"
+    ? { type: "object", properties: { items: schema }, required: ["items"] }
+    : schema;
+}
+
 function ok(id: unknown, result: Json): Json {
   return { jsonrpc: "2.0", id, result };
 }
@@ -49,7 +67,7 @@ async function handleOne(req: Json, tools: Tool[], ctx: ToolCtx): Promise<Json |
             title: t.title,
             description: t.description,
             inputSchema: t.inputSchema,
-            ...(t.outputSchema ? { outputSchema: t.outputSchema } : {}),
+            ...(t.outputSchema ? { outputSchema: wrapListSchema(t.outputSchema) } : {}),
             annotations: t.annotations ?? READ_ONLY,
           })),
         });
@@ -60,7 +78,7 @@ async function handleOne(req: Json, tools: Tool[], ctx: ToolCtx): Promise<Json |
         const result = await tool.run(req.params?.arguments || {}, ctx);
         return ok(req.id, {
           content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
-          structuredContent: result,
+          structuredContent: structuredResult(result),
         });
       }
 
